@@ -1,0 +1,112 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam usecase {
+    BackgroundColor White
+    BorderColor Black
+}
+ 
+title WAHrden Use Case Diagram
+ 
+actor "Healthcare\nPersonnel" as HP
+actor "Facility\nAdministrator" as FA
+actor "WAH Super\nAdministrator" as SA
+ 
+rectangle "WAHrden Governance Platform" {
+ 
+package "Layer 1\nIdentity & Access Foundation" {
+ 
+  usecase "UC-01\nAuthenticate User" as UC01
+  usecase "UC-02\nManage Users" as UC02
+  usecase "UC-03\nManage Roles" as UC03
+  usecase "UC-04\nManage Permissions" as UC04
+ 
+}
+ 
+package "Layer 2\nOrganization Governance" {
+ 
+  usecase "UC-05\nManage Facilities" as UC05
+  usecase "UC-06\nManage Facility\nAdministrators" as UC06
+  usecase "UC-07\nManage Facility\nModules" as UC07
+ 
+}
+ 
+package "Layer 3\nPlatform Governance Services" {
+ 
+  usecase "UC-08\nAuthorize Service\nAccess" as UC08
+  usecase "UC-09\nGovern Audit\nEvents" as UC09
+  usecase "UC-10\nGovern Active\nSessions" as UC10
+ 
+}
+ 
+package "Layer 4\nGovernance Intelligence\n& Compliance" {
+ 
+  usecase "UC-11\nGovern Operational\nVisibility" as UC11
+  usecase "UC-12\nGovern Device\nIntelligence" as UC12
+  usecase "UC-13\nGovern Compliance\nReporting" as UC13
+  usecase "UC-14\nGovern Security\nAlerts" as UC14
+ 
+}
+ 
+}
+ 
+'========================
+' Actor Relationships
+'========================
+ 
+HP --> UC01
+ 
+FA --> UC01
+FA --> UC02
+FA --> UC06
+FA --> UC07
+ 
+SA --> UC01
+SA --> UC02
+SA --> UC03
+SA --> UC04
+SA --> UC05
+SA --> UC06
+SA --> UC07
+ 
+'========================
+' Core Platform Relationships
+'========================
+ 
+UC01 .> UC09 : <<include>>
+UC01 .> UC10 : <<include>>
+ 
+UC02 .> UC09 : <<include>>
+UC03 .> UC09 : <<include>>
+UC04 .> UC09 : <<include>>
+UC05 .> UC09 : <<include>>
+UC06 .> UC09 : <<include>>
+UC07 .> UC09 : <<include>>
+UC08 .> UC09 : <<include>>
+ 
+UC08 .> UC01 : <<include>>
+ 
+'========================
+' Dependencies
+'========================
+ 
+UC02 ..> UC03 : uses Roles
+UC02 ..> UC04 : uses Permissions
+UC02 ..> UC05 : assigned to Facility
+ 
+UC06 ..> UC05 : Facility required
+UC07 ..> UC05 : Facility required
+ 
+UC08 ..> UC02 : identity lookup
+UC08 ..> UC04 : permission lookup
+ 
+UC11 ..> UC09 : governance data
+UC12 ..> UC09 : governance data
+UC13 ..> UC09 : governance data
+UC14 ..> UC09 : governance data
+ 
+UC11 ..> UC10 : session data
+UC12 ..> UC10 : device sessions
+ 
+@enduml
