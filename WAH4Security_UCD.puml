@@ -1,0 +1,101 @@
+@startuml
+left to right direction
+
+skinparam shadowing false
+skinparam ranksep 35
+skinparam nodesep 25
+
+skinparam usecase {
+    BackgroundColor #FADBD8
+    BorderColor #C0392B
+    FontColor Black
+}
+
+skinparam package {
+    BackgroundColor #F9F9F9
+    BorderColor #666666
+    FontColor Black
+}
+
+skinparam rectangle {
+    BackgroundColor White
+    BorderColor Black
+}
+
+title WAHrden Use Case Diagram
+
+'========================
+' Left-side Actors (Properly Aligned Vertically)
+'========================
+actor "WAH Super\nAdministrator" as SA
+actor "Facility\nAdministrator" as FA
+actor "Healthcare\nPersonnel" as HP
+
+' Explicitly forces vertical alignment from top to bottom on the left
+SA -[hidden]down- FA
+FA -[hidden]down- HP
+
+'========================
+' System Boundary with Submodules
+'========================
+rectangle "WAHrden Governance Platform" {
+
+    package "Submodule 1: Identity & Access Foundation" {
+        usecase "Authenticate Users" as UC01
+        usecase "Manage Users" as UC02
+        usecase "Manage Roles & Perms" as UC03
+        
+        ' Layout structure matching your sketch:
+        ' Manage Roles <---extend---> Manage Users
+        ' Authenticated Users stacked vertically below Manage Users
+        UC03 ..> UC02 : <<extend>>
+        UC02 .right.> UC01 : <<include>>
+        
+        ' Invisible layout constraint to stack Authenticate Users directly below Manage Users
+        UC02 -[hidden]right- UC01
+    }
+
+    package "Submodule 2: Organization Governance" {
+        usecase "Manage Facility Tenants & Modules" as UC04
+    }
+
+    package "Submodule 3: Platform Governance Services" {
+        usecase "Enforce Access & Sessions" as UC05
+        usecase "Govern Audit Logs" as UC06
+    }
+
+    package "Submodule 4: Governance Intelligence & Compliance" {
+        usecase "Monitor Operational Intelligence" as UC07
+        usecase "Generate Compliance Reports" as UC08
+        usecase "Manage Security Alerts" as UC09
+    }
+}
+
+'========================
+' Right-side Actors (External to WAH)
+'========================
+actor "External of WAH" as ExtWAH
+
+'========================
+' Connections
+'========================
+SA --> UC01
+SA --> UC02
+SA --> UC03
+SA --> UC04
+SA --> UC07
+SA --> UC08
+SA --> UC09
+
+FA --> UC01
+FA --> UC02
+FA --> UC04
+FA --> UC07
+FA --> UC09
+
+HP --> UC01
+
+' Connects Manage Users horizontally to the External Actor on the right
+UC02 -- ExtWAH
+
+@enduml
