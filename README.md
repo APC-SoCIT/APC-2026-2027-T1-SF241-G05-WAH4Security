@@ -1,4 +1,4 @@
-# MSSYADD1/SSYADD1 WAH4Security Repository
+# WAH4Security
 
 Stored here are the files pertaining to the WAH4Security team's, TheseCAYA, project. 
 
