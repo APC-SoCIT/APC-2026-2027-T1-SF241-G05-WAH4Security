@@ -1,2 +1,9 @@
-# apc-mssyadd1-template
-Template repository for APC MSSYADD1
+# MSSYADD1/SSYADD1 WAH4Security Repository
+
+Stored here are the files pertaining to the WAH4Security team's, TheseCAYA, project. 
+
+Due to the nature of TheseCAYA's requirements, two project repositories shall be linked in this repository.
+
+Links to the projects:
+WAHrden Admin Portal — pending
+SSO Login Page — pending
