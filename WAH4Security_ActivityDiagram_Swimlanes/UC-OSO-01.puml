@@ -1,0 +1,76 @@
+' UC-OSO-01 — Review Operational & Security Information
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access operational & security oversight function;
+
+|WAHrden System|
+:1.1 Verify administrator review authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present available information categories/views;
+endif
+
+|WAH Central Administrator|
+:2.0 Select information category or view;
+
+|WAHrden System|
+:2.1 Retrieve data for category within authorized scope;
+if (Data available?) then (No [EF-02])
+  :Present no-applicable-information result;
+  kill
+elseif (Retrieval error?) then (Yes [EF-06])
+  :Present retrieval failure;
+  kill
+else (Yes)
+  :Present operational/security information;
+endif
+
+|WAH Central Administrator|
+if (Apply search/filter criteria?) then (Yes [3.0])
+  :Provide search/filter criteria;
+  |WAHrden System|
+  :3.1 Validate and apply criteria;
+  if (Criteria valid?) then (No [EF-03])
+    :Present criteria validation issue;
+    kill
+  elseif (Any matching records?) then (No [EF-04])
+    :Present no-match result;
+    kill
+  else (Yes)
+    :Present filtered records;
+  endif
+else (No)
+endif
+
+|WAH Central Administrator|
+if (Inspect item details?) then (Yes [3.2])
+  :Select specific record/event;
+  |WAHrden System|
+  :3.3 Retrieve item details;
+  if (Item available?) then (No [EF-05])
+    :Present item-unavailable error;
+    kill
+  else (Yes)
+    :Present detailed information;
+  endif
+else (No)
+endif
+
+|WAH Central Administrator|
+:4.0 Complete oversight review;
+
+|WAHrden System|
+|Database / Audit|
+:4.1 Record oversight review activity & context;
+
+|WAH Central Administrator|
+stop
+@enduml
