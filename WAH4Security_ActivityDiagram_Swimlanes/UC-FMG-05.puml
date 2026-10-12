@@ -1,0 +1,93 @@
+' UC-FMG-05 — Review Facility Module Change Request
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access module-change review function;
+
+|WAHrden System|
+:1.1 Verify centralized authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Retrieve pending module-change requests;
+  if (Pending requests available?) then (No [EF-02])
+    :Present no-Pending-requests notice;
+    kill
+  else (Yes)
+    :Present list of Pending requests;
+  endif
+endif
+
+|WAH Central Administrator|
+:2.0 Select module-change request to review;
+
+|WAHrden System|
+:2.1 Retrieve request details;
+if (Request exists & still Pending?) then (No [EF-03 / EF-04])
+  :Present request unavailable/stale status;
+  kill
+else (Yes)
+  :Present request details & facility module context;
+endif
+
+|WAH Central Administrator|
+:2.2 Review request information;
+if (Review info valid?) then (No [EF-05])
+  |WAHrden System|
+  :Present validation issue; hold decision;
+  kill
+else (Yes)
+endif
+
+|WAH Central Administrator|
+if (Decision type?) then (Approve [3.0])
+  :Select Approve;
+  |WAHrden System|
+  :3.1 Present approval confirmation prompt;
+elseif (Modify and Approve [AF-01])
+  :Modify details & select Approve;
+  |WAHrden System|
+  :Validate modifications & present confirmation;
+else (Reject [AF-02])
+  :Select Reject;
+  |WAHrden System|
+  :Present rejection confirmation prompt;
+endif
+
+|WAH Central Administrator|
+if (Confirm decision?) then (No / Cancel [EF-06])
+  :Cancel review action;
+  kill
+else (Yes [3.2])
+  :Confirm decision;
+endif
+
+|WAHrden System|
+:4.0 Validate final status against review requirements;
+if (Still eligible for decision?) then (No [EF-07])
+  :Present decision-not-applicable result;
+  kill
+else (Yes)
+  :4.1 Apply decision to request (Status updated);
+  if (Processing successful?) then (No [EF-08])
+    :Present review-failure result;
+    kill
+  else (Yes)
+    |Database / Audit|
+    :4.2 Record review decision & audit trail;
+    
+    |WAHrden System|
+    :4.3 Present resulting decision and status;
+  endif
+endif
+
+|WAH Central Administrator|
+:Acknowledge review outcome;
+stop
+@enduml
