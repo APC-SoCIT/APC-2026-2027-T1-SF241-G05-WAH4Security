@@ -1,0 +1,59 @@
+' Component Diagram
+
+@startuml C4_Level3_Component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Component Diagram - WAHrden Governance & PDP Service
+
+Container_Ext(api_gw, "WAHrden Internal Gateway", "Reverse Proxy")
+Container_Ext(wah4clinic, "WAH4Clinic\n(External Team)", "Out-patient System")
+Container_Ext(wah4hospital, "WAH4Hospital\n(External Team)", "In-patient Hospital System")
+Container_Ext(wah4pc, "WAH4PC\n(External Team)", "Primary Care System")
+Container_Ext(wah4interop, "WAH4Interop / OpenHIM\n(External Team)", "Health Information Mediator")
+ContainerDb(wahrden_db, "WAHrden Database", "PostgreSQL")
+ContainerDb(audit_store, "Internal Audit Store", "PostgreSQL")
+
+Container_Boundary(pdp_boundary, "Governance & PDP Service (Security Team Scope)") {
+    Component(authz_controller, "Authorization Controller", "NestJS Controller", "Exposes /api/v1/authz/evaluate for service-level checks (UC-AGA-07).")
+    Component(gov_controller, "Governance Controller", "NestJS Controller", "Exposes endpoints for user onboarding, access modifications, and facility module setup.")
+    
+    Component(token_guard, "Token & Context Guard", "NestJS Guard", "Validates JWT caller context and decodes subject/client identity.")
+    Component(pdp_engine, "Policy Decision Engine (PDP)", "Domain Service", "Executes multi-tier authorization pipeline: identity, facility, module, role.")
+    
+    Component(module_validator, "Facility Module Validator", "Domain Service", "Verifies target facility has the requested module enabled (UC-FMG-03).")
+    Component(facility_scope_mgr, "Facility Scope Evaluator", "Domain Service", "Verifies user access assignment to the specific facility (UC-AGA-02).")
+    Component(rbac_evaluator, "Role & Permission Evaluator", "Domain Service", "Verifies required permissions for the action (UC-AGA-01).")
+    
+    Component(request_handler, "Access Request Handler", "Domain Service", "Coordinates onboarding and access change workflows (UC-AGA-03 to 06).")
+    Component(audit_writer, "Audit Logger Component", "Domain Service", "Persists structured decision and governance events to the internal audit store.")
+    Component(repo_layer, "Governance Repository Layer", "TypeORM Repository", "Persists and queries facility, role, and assignment models.")
+}
+
+Rel(wah4clinic, authz_controller, "Checks authorization for Out-patient actions", "POST /evaluate")
+Rel(wah4hospital, authz_controller, "Checks authorization for In-patient actions", "POST /evaluate")
+Rel(wah4pc, authz_controller, "Checks authorization for Primary Care actions", "POST /evaluate")
+Rel(wah4interop, authz_controller, "Checks authorization for mediator transactions", "POST /evaluate")
+Rel(api_gw, gov_controller, "Routes administrative requests", "HTTP / JSON")
+
+Rel(authz_controller, token_guard, "Verifies caller token", "In-process")
+Rel(authz_controller, pdp_engine, "Delegates decision evaluation", "In-process")
+Rel(gov_controller, request_handler, "Dispatches onboarding/change requests", "In-process")
+
+Rel(pdp_engine, facility_scope_mgr, "Validates facility assignment", "In-process")
+Rel(pdp_engine, module_validator, "Validates facility module availability", "In-process")
+Rel(pdp_engine, rbac_evaluator, "Validates permissions and roles", "In-process")
+
+Rel(pdp_engine, audit_writer, "Emits Authorized / Denied records", "In-process")
+Rel(request_handler, audit_writer, "Emits request workflow audit records", "In-process")
+
+Rel(facility_scope_mgr, repo_layer, "Queries facility assignments", "Method call")
+Rel(module_validator, repo_layer, "Queries facility module configs", "Method call")
+Rel(rbac_evaluator, repo_layer, "Queries role definitions", "Method call")
+Rel(request_handler, repo_layer, "Reads/Updates request states", "Method call")
+
+Rel(repo_layer, wahrden_db, "SQL Queries & Transactions", "PostgreSQL Protocol")
+Rel(audit_writer, audit_store, "Writes audit rows", "SQL Protocol")
+
+@enduml
