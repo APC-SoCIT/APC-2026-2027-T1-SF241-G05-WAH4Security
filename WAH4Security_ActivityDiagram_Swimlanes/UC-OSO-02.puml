@@ -1,0 +1,71 @@
+' UC-OSO-02 — Generate Operational Report
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access operational reporting function;
+
+|WAHrden System|
+:1.1 Verify reporting authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present available report options and scopes;
+endif
+
+|WAH Central Administrator|
+:2.0 Select report type/scope;
+:2.1 Specify report criteria (date range, facility, etc.);
+
+|WAHrden System|
+:2.2 Present report criteria summary for review;
+
+|WAH Central Administrator|
+if (Revise criteria?) then (Yes [AF-01])
+  :Revise parameters;
+  |WAHrden System|
+  :Update summary;
+else (No)
+endif
+
+if (Initiate generation?) then (No / Cancel [EF-05])
+  :Cancel report generation;
+  kill
+else (Yes [2.3])
+  :Confirm and request report generation;
+endif
+
+|WAHrden System|
+:3.0 Validate scope and criteria;
+if (Criteria valid and supported?) then (No [EF-02])
+  :Present criteria validation issue;
+  kill
+else (Yes)
+  :3.1 Retrieve matching WAHrden records;
+  if (Matching records found?) then (No [EF-03])
+    :Present no-applicable-information result;
+    kill
+  else (Yes)
+    :3.2 Compile and generate report;
+    if (Generation failed?) then (Yes [EF-04])
+      :Present report-generation failure;
+      kill
+    else (Success)
+      |Database / Audit|
+      :3.3 Record report generation audit event;
+      
+      |WAHrden System|
+      :4.0 Present generated operational report;
+    endif
+  endif
+endif
+
+|WAH Central Administrator|
+:4.1 Review completed report;
+stop
+@enduml
