@@ -1,0 +1,72 @@
+' UC-FMG-03 — Configure Facility Module Availability
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access facility module administration;
+
+|WAHrden System|
+:1.1 Verify administrator authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present facility search/selection tool;
+endif
+
+|WAH Central Administrator|
+:2.0 Select healthcare facility;
+
+|WAHrden System|
+if (Facility found?) then (No [EF-02])
+  :Present facility-not-found result;
+  kill
+else (Yes [2.1])
+  :Present current facility-specific module availability;
+endif
+
+|WAH Central Administrator|
+:3.0 Select module & configuration action\n(Add, Remove, Enable, or Disable);
+
+|WAHrden System|
+:3.1 Present proposed resulting module setup;
+:3.2 Validate against module & governance constraints;
+if (Module unavailable for context?) then (Yes [EF-03])
+  :Present configuration-availability error;
+  kill
+elseif (Violates governance constraint?) then (Yes [EF-04])
+  :Present configuration-conflict result;
+  kill
+else (Valid)
+  :Present validated configuration for review;
+endif
+
+|WAH Central Administrator|
+if (Confirm configuration?) then (No / Cancel [EF-05])
+  :Cancel module configuration;
+  kill
+else (Yes [3.3])
+  :Confirm module configuration changes;
+endif
+
+|WAHrden System|
+:4.0 Apply facility module configuration;
+if (Application succeeded?) then (No [EF-06])
+  :Present configuration failure result;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record configuration change & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present resulting module availability;
+endif
+
+|WAH Central Administrator|
+:Review updated module configuration;
+stop
+@enduml
