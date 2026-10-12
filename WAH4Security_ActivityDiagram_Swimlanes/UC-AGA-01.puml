@@ -1,0 +1,73 @@
+' UC-AGA-01 — Configure Roles and Permissions
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access role & permission administration;
+
+|WAHrden System|
+:1.1 Verify administrator authority;
+if (Authorized?) then (No [EF-01])
+  :Present authorization failure result;
+  kill
+else (Yes)
+  :1.2 Present existing roles, permissions & options;
+endif
+
+|WAH Central Administrator|
+if (Action type?) then (Maintain Existing [AF-01])
+  :Select existing role;
+  |WAHrden System|
+  :2.1 Check availability & load configuration;
+  if (Role available?) then (No [EF-02])
+    :Present role-unavailable result;
+    kill
+  else (Yes)
+  endif
+else (Establish New Role [AF-02])
+  :Initiate new role configuration;
+  |WAHrden System|
+  :2.1 Present blank configuration interface;
+endif
+
+|WAH Central Administrator|
+:2.2 Define/modify role details and assign permissions;
+
+|WAHrden System|
+:3.0 Validate proposed role configuration;
+if (Configuration valid?) then (No [EF-03])
+  :Present validation issues & prompt revision;
+  kill
+else (Yes)
+  :Present validated configuration for review;
+endif
+
+|WAH Central Administrator|
+if (Confirm configuration?) then (No / Cancel [EF-04])
+  :Cancel configuration;
+  kill
+else (Yes [3.1])
+  :Confirm role configuration;
+endif
+
+|WAHrden System|
+:4.0 Apply role & permission configuration;
+if (Application succeeded?) then (No [EF-05])
+  :Present configuration failure result;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record configuration changes & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present configuration success result;
+endif
+
+|WAH Central Administrator|
+:Review updated configuration;
+stop
+@enduml
