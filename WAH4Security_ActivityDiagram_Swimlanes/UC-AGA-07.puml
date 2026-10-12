@@ -1,0 +1,60 @@
+' UC-AGA-07 — Authorize Service Access
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|Participating WAH Service|
+start
+:1.0 Submit authorization request\n(user token, requested action, facility);
+
+|WAHrden System|
+:1.1 Validate request structure & context completeness;
+if (Request valid?) then (No [EF-01])
+  :Determine Denied decision;
+  |Participating WAH Service|
+  :4.0 Enforce Denied decision;
+  kill
+else (Yes)
+  :2.0 Establish authorization context;
+  :2.1 Evaluate centralized identity & facility context;
+  if (Identity/Context established?) then (No [EF-02])
+    :Determine Denied decision;
+    |Participating WAH Service|
+    :4.0 Enforce Denied decision;
+    kill
+  else (Yes)
+    :2.2 Evaluate facility-specific access assignment;
+    :2.3 Evaluate role and permission requirements;
+    :2.4 Evaluate facility module availability;
+    
+    if (All access constraints satisfied?) then (No [AF-01])
+      :Determine Denied decision;
+      |Database / Audit|
+      :Record authorization denial event;
+      |WAHrden System|
+      :3.2 Return Denied decision;
+      |Participating WAH Service|
+      :4.0 Enforce Denied decision (Block action);
+      kill
+    else (Yes [3.0])
+      if (Evaluation processing error?) then (Yes [EF-03])
+        :Determine Denied decision;
+        |Participating WAH Service|
+        :4.0 Enforce Denied decision;
+        kill
+      else (No)
+        |Database / Audit|
+        :3.1 Record Authorized decision & audit trail;
+        |WAHrden System|
+        :3.2 Return Authorized decision;
+      endif
+    endif
+  endif
+endif
+
+|Participating WAH Service|
+:4.0 Enforce Authorized decision & execute requested function;
+stop
+@enduml
