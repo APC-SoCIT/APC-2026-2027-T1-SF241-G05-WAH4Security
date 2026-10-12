@@ -1,0 +1,64 @@
+' UC-FMG-04 — Request Facility Module Change
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|Facility Administrator|
+start
+:1.0 Access module-change request function;
+
+|WAHrden System|
+:1.1 Verify authority and facility scope;
+if (Authorized?) then (No [EF-01])
+  :Present scope/authority denial;
+  kill
+else (Yes)
+  :1.2 Present current facility module configuration;
+endif
+
+|Facility Administrator|
+:2.0 Select target module & requested change;
+:2.1 Provide request information & supporting reason;
+
+|WAHrden System|
+:2.2 Validate request;
+if (Outside authorized facility scope?) then (Yes [EF-03])
+  :Present scope validation failure;
+  kill
+elseif (Incomplete or invalid info?) then (Yes [EF-02])
+  :Present validation issues & allow revision;
+  kill
+elseif (Conflicting request/governance?) then (Yes [EF-04])
+  :Present configuration-conflict result;
+  kill
+else (Valid)
+  :3.0 Present proposed request for review;
+endif
+
+|Facility Administrator|
+if (Confirm submission?) then (No / Cancel [EF-05])
+  :Cancel request submission;
+  kill
+else (Yes [3.1])
+  :Confirm submission;
+endif
+
+|WAHrden System|
+:4.0 Save module-change request in 'Pending' state;
+if (Save succeeded?) then (No [EF-06])
+  :Present submission processing failure;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record submitted request & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present Pending request confirmation;
+endif
+
+|Facility Administrator|
+:Acknowledge submission confirmation;
+stop
+@enduml
