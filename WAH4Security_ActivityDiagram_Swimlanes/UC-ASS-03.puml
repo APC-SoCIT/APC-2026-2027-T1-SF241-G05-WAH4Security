@@ -1,0 +1,88 @@
+' UC-ASS-03 — Authenticate User
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Service User|
+start
+:1.0 Access WAH User Access Portal;
+
+|WAHrden System|
+:1.1 Present available participating services;
+
+|WAH Service User|
+:1.2 Select participating service;
+:1.3 Initiate service authentication;
+
+|WAHrden System|
+:2.0 Establish authentication context;
+:2.1 Present authentication interface;
+
+|WAH Service User|
+if (Submit credentials?) then (No / Cancel [EF-06])
+  :Cancel authentication;
+  kill
+else (Yes [3.0])
+  :Provide authentication credentials;
+endif
+
+|WAHrden System|
+:3.1 Validate credentials;
+if (Credentials valid?) then (No [EF-01])
+  if (Threshold exceeded?) then (Yes [EF-05])
+    :Apply temporary restriction / rate limit;
+  else (No)
+    :Present invalid authentication result;
+  endif
+  kill
+else (Yes)
+  :3.2 Resolve centralized identity;
+  if (Identity resolved?) then (No [EF-02])
+    :Present identity-resolution failure;
+    kill
+  else (Yes)
+    :4.0 Check account lifecycle status;
+    if (Eligible to authenticate? \n(Not Deactivated / Locked)) then (No [EF-03])
+      :Present account ineligible error;
+      kill
+    else (Yes)
+      if (Additional auth / MFA required?) then (Yes [4.1])
+        :Request additional authentication;
+        |WAH Service User|
+        if (Complete MFA?) then (No / Cancel [EF-06])
+          :Cancel authentication;
+          kill
+        else (Yes [4.2])
+          :Submit MFA response;
+        endif
+        |WAHrden System|
+        :4.3 Validate MFA response;
+        if (MFA valid?) then (No [EF-04])
+          :Present additional auth failure;
+          kill
+        else (Yes)
+        endif
+      else (No)
+      endif
+      
+      :5.0 Establish authenticated identity session;
+      if (Session completion successful?) then (No [EF-07])
+        :Present authentication completion failure;
+        kill
+      else (Yes)
+        |Database / Audit|
+        :5.1 Record authentication event;
+        
+        |WAHrden System|
+        :5.2 Issue authentication token / result;
+      endif
+    endif
+  endif
+endif
+
+|WAH Service User|
+:5.3 Continue to selected Participating WAH Service;
+stop
+@enduml
