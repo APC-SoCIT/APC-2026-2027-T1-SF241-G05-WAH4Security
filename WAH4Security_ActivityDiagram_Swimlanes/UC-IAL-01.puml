@@ -1,0 +1,65 @@
+' UC-IAL-01 — Create User Account
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+skinparam ActivityBorderColor #2D3436
+
+|WAH Central Administrator|
+start
+:1.0 Access centralized account creation function;
+
+|WAHrden System|
+:1.1 Verify administrator authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present account-creation form & requirements;
+endif
+
+|WAH Central Administrator|
+:2.0 Enter required account information;
+:2.1 Submit account information;
+
+|WAHrden System|
+:2.2 Validate submitted information;
+if (Information valid & complete?) then (No [EF-02])
+  :Identify validation issues & prompt for correction;
+  kill
+else (Yes)
+  :2.3 Check for existing/conflicting centralized identity;
+  if (Duplicate/Conflict exists?) then (Yes [EF-03])
+    :Prevent creation & present conflict for review;
+    kill
+  else (No)
+    :3.0 Present validated information for review;
+  endif
+endif
+
+|WAH Central Administrator|
+if (Confirm creation?) then (No / Cancel [EF-04])
+  :Cancel account creation;
+  kill
+else (Yes [3.1])
+  :Confirm creation;
+endif
+
+|WAHrden System|
+:4.0 Attempt to create account & set initial state;
+if (Creation succeeds?) then (No [EF-05])
+  :Present account-creation failure result;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record account creation & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present resulting centralized account & success result;
+endif
+
+|WAH Central Administrator|
+:Receive creation confirmation;
+stop
+@enduml
