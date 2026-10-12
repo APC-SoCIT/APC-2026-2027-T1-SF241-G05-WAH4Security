@@ -1,0 +1,72 @@
+' UC-FMG-02 — Update Facility Information
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access facility administration;
+
+|WAHrden System|
+:1.1 Verify administrator authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present facility search/selection interface;
+endif
+
+|WAH Central Administrator|
+:2.0 Enter search criteria & select facility;
+
+|WAHrden System|
+:2.1 Locate healthcare facility;
+if (Facility located?) then (No [EF-02])
+  :Present facility-not-found result;
+  kill
+else (Yes)
+  :Present current permitted facility profile;
+endif
+
+|WAH Central Administrator|
+:3.0 Modify permitted facility details;
+
+|WAHrden System|
+:3.1 Validate proposed modifications;
+if (Incomplete or invalid?) then (Yes [EF-03])
+  :Present validation issues & allow correction;
+  kill
+elseif (Conflicting facility data?) then (Yes [EF-04])
+  :Present conflict result & prevent update;
+  kill
+else (Valid)
+  :3.2 Present proposed changes for confirmation;
+endif
+
+|WAH Central Administrator|
+if (Confirm update?) then (No / Cancel [EF-05])
+  :Cancel facility update;
+  kill
+else (Yes [3.3])
+  :Confirm facility updates;
+endif
+
+|WAHrden System|
+:4.0 Apply facility information updates;
+if (Update successful?) then (No [EF-06])
+  :Present update failure result;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record facility update & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present updated facility profile;
+endif
+
+|WAH Central Administrator|
+:Acknowledge successful update;
+stop
+@enduml
