@@ -1,0 +1,82 @@
+' UC-ASS-02 — Recover Account Access
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Service User|
+start
+:1.0 Initiate account recovery process;
+
+|WAHrden System|
+:1.1 Present recovery options & required inputs;
+
+|WAH Service User|
+:2.0 Provide identity/recovery identifier;
+
+|WAHrden System|
+:2.1 Resolve identity & verify registered recovery methods;
+if (Recovery context found?) then (No [EF-01])
+  :Present recovery unavailable result;
+  kill
+else (Yes)
+  :2.2 Issue recovery verification challenge;
+endif
+
+|WAH Service User|
+:2.3 Submit recovery verification response;
+
+|WAHrden System|
+:2.4 Validate recovery response;
+if (Response valid?) then (No [EF-02])
+  :Present verification failure;
+  kill
+else (Yes)
+  if (Additional verification required?) then (Yes [2.5])
+    :Request additional verification step;
+    |WAH Service User|
+    :2.6 Provide additional verification input;
+    |WAHrden System|
+    :2.7 Validate additional verification;
+    if (Valid?) then (No [EF-03])
+      :Present additional verification failure;
+      kill
+    else (Yes)
+    endif
+  else (No)
+  endif
+  :3.0 Present reset/recovery action screen;
+endif
+
+|WAH Service User|
+if (Submit new access details?) then (No / Cancel [EF-05])
+  :Cancel recovery action;
+  kill
+else (Yes [3.1])
+  :Submit and confirm new credentials;
+endif
+
+|WAHrden System|
+:3.2 Validate submitted recovery information;
+if (Inputs satisfy security policies?) then (No [EF-04])
+  :Present validation error & prompt retry;
+  kill
+else (Yes)
+  :4.0 Restore access / update credential;
+  if (Processing successful?) then (No [EF-06])
+    :Present recovery failure result;
+    kill
+  else (Yes)
+    |Database / Audit|
+    :4.1 Record recovery event & audit trail;
+    
+    |WAHrden System|
+    :4.2 Present recovery success result;
+  endif
+endif
+
+|WAH Service User|
+:Proceed with recovered account;
+stop
+@enduml
