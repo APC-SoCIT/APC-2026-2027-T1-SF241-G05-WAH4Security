@@ -1,0 +1,60 @@
+' UC-AGA-03 — Request Facility User Onboarding
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|Facility Administrator|
+start
+:1.0 Access facility onboarding request function;
+
+|WAHrden System|
+:1.1 Verify facility administrator authority & scope;
+if (Authorized for facility?) then (No [EF-01])
+  :Present scope/authority denial;
+  kill
+else (Yes)
+  :1.2 Present onboarding request form;
+endif
+
+|Facility Administrator|
+:2.0 Provide prospective-user & requested access details;
+
+|WAHrden System|
+:2.1 Validate request completeness and facility scope;
+if (Within authorized scope?) then (No [EF-03])
+  :Prevent submission; scope validation failure;
+  kill
+elseif (Information valid & complete?) then (No [EF-02])
+  :Present validation issue & prompt correction;
+  kill
+else (Valid)
+  :2.2 Present request summary for confirmation;
+endif
+
+|Facility Administrator|
+if (Confirm submission?) then (No / Cancel [EF-04])
+  :Cancel request submission;
+  kill
+else (Yes [3.0])
+  :Confirm onboarding request submission;
+endif
+
+|WAHrden System|
+:3.1 Save request in 'Pending' state;
+if (Save successful?) then (No [EF-05])
+  :Present request submission failure;
+  kill
+else (Yes)
+  |Database / Audit|
+  :3.2 Record pending request & audit entry;
+  
+  |WAHrden System|
+  :3.3 Present submission confirmation to administrator;
+endif
+
+|Facility Administrator|
+:Acknowledge Pending request status;
+stop
+@enduml
