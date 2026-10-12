@@ -1,0 +1,61 @@
+' Container Diagram
+
+@startuml C4_Level2_Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram - WAHrden Platform Architecture
+
+Person(users, "WAH Users & Administrators", "Central Admins, Facility Admins, and Healthcare Personnel.")
+
+System_Ext(wah4clinic, "WAH4Clinic\n(External Team)", "Out-patient clinical service.")
+System_Ext(wah4hospital, "WAH4Hospital\n(External Team)", "In-patient hospital management service.")
+System_Ext(wah4pc, "WAH4PC\n(External Team)", "Primary care clinical service.")
+System_Ext(wah4interop, "WAH4Interop / OpenHIM\n(External Team)", "Health Information Mediator routing external claims and FHIR exchanges.")
+
+System_Boundary(wahrden_boundary, "WAHrden IAM System (Security Team Scope)") {
+    Container(auth_portal, "WAHrden SSO & Access Portal", "Next.js, TypeScript", "User login, MFA challenges, self-service credential recovery, and profile management.")
+    Container(admin_console, "WAHrden Governance Admin Web", "Next.js, TypeScript", "Centralized administrative console for RBAC, facility scoping, and request governance.")
+    Container(api_gateway, "WAHrden Internal Gateway", "Reverse Proxy / Ingress", "Ingress traffic routing, TLS termination, and rate limiting.")
+    
+    Container(iam_service, "Identity & Authentication Service", "NestJS, TypeScript", "OIDC/OAuth2 SSO provider, credential management, and session lifecycle.")
+    Container(gov_service, "Governance & PDP Service", "NestJS, TypeScript", "Policy Decision Point evaluating facility scopes, roles, module availability, and approval workflows.")
+    Container(oversight_service, "Operational & Security Oversight Service", "NestJS, TypeScript", "Aggregates internal audit records and compiles operational oversight reports.")
+    
+    ContainerDb(session_cache, "Session & Cache Store", "Redis", "Maintains active user sessions, token revocation blocklists, and rate-limiting counters.")
+    ContainerDb(wahrden_db, "WAHrden Core Database", "PostgreSQL", "Stores user identities, roles, facility metadata, and access requests.")
+    ContainerDb(audit_store, "Internal Audit & Event Store", "PostgreSQL", "Immutable storage for authentication logs, session events, and PDP decisions.")
+}
+
+Rel(users, auth_portal, "Authenticates via SSO", "HTTPS")
+Rel(users, admin_console, "Performs governance & administrative actions", "HTTPS")
+
+Rel(auth_portal, api_gateway, "Delegates UI requests", "HTTPS / JSON")
+Rel(admin_console, api_gateway, "Delegates admin requests", "HTTPS / JSON")
+
+Rel(api_gateway, iam_service, "Routes Auth & Session requests", "HTTP / gRPC")
+Rel(api_gateway, gov_service, "Routes Policy & Request calls", "HTTP / gRPC")
+Rel(api_gateway, oversight_service, "Routes Oversight & Audit requests", "HTTP / gRPC")
+
+Rel(wah4clinic, iam_service, "Validates SSO Tokens via JWKS", "HTTPS / OIDC")
+Rel(wah4clinic, gov_service, "Evaluates user authorization & module entitlement (UC-AGA-07)", "HTTPS / REST")
+
+Rel(wah4hospital, iam_service, "Validates SSO Tokens via JWKS", "HTTPS / OIDC")
+Rel(wah4hospital, gov_service, "Evaluates user authorization & module entitlement (UC-AGA-07)", "HTTPS / REST")
+
+Rel(wah4pc, iam_service, "Validates SSO Tokens via JWKS", "HTTPS / OIDC")
+Rel(wah4pc, gov_service, "Evaluates user authorization & module entitlement (UC-AGA-07)", "HTTPS / REST")
+
+Rel(wah4interop, iam_service, "Validates service tokens / OAuth2 claims", "HTTPS / REST")
+Rel(wah4interop, gov_service, "Verifies external exchange permissions", "HTTPS / REST")
+
+Rel(iam_service, session_cache, "Reads/Writes active sessions (UC-ASS-04)", "Redis Protocol")
+Rel(iam_service, wahrden_db, "Reads/Writes accounts and credentials", "SQL / TypeORM")
+Rel(gov_service, wahrden_db, "Reads/Writes facility scopes, roles, and requests", "SQL / TypeORM")
+
+Rel(iam_service, audit_store, "Writes authentication logs", "SQL")
+Rel(gov_service, audit_store, "Writes PDP decisions & governance trails", "SQL")
+Rel(oversight_service, audit_store, "Queries audit logs for reports (UC-OSO-01, 02)", "SQL")
+
+@enduml
