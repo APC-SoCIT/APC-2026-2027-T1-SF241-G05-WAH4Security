@@ -1,0 +1,90 @@
+' UC-AGA-06 — Review Facility User Access Change Request
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access access-change review function;
+
+|WAHrden System|
+:1.1 Verify administrative authority;
+if (Authorized?) then (No [EF-01])
+  :Present authorization failure;
+  kill
+else (Yes)
+  :1.2 Retrieve pending access-change requests;
+  if (Pending requests exist?) then (No [EF-02])
+    :Present no-Pending-requests notice;
+    kill
+  else (Yes)
+    :Present list of Pending requests;
+  endif
+endif
+
+|WAH Central Administrator|
+:2.0 Select request to review;
+
+|WAHrden System|
+:2.1 Retrieve request & current access context;
+if (Request available & still Pending?) then (No [EF-03])
+  :Present current request status;
+  kill
+else (Yes)
+  :Present request details and current access;
+endif
+
+|WAH Central Administrator|
+:2.2 Review request details;
+if (Review info valid?) then (No [EF-04])
+  |WAHrden System|
+  :Present validation issue; hold decision;
+  kill
+else (Yes)
+endif
+
+|WAH Central Administrator|
+if (Decision type?) then (Approve [3.0])
+  :Select Approve;
+  |WAHrden System|
+  :3.1 Present approval confirmation prompt;
+elseif (Modify and Approve [AF-01])
+  :Modify details & select Approve;
+  |WAHrden System|
+  :Validate modifications & present confirmation;
+else (Reject [AF-02])
+  :Select Reject;
+  |WAHrden System|
+  :Present rejection confirmation prompt;
+endif
+
+|WAH Central Administrator|
+if (Confirm decision?) then (No / Cancel [EF-05])
+  :Cancel review decision;
+  kill
+else (Yes [3.2])
+  :Confirm decision;
+endif
+
+|WAHrden System|
+:4.0 Validate final status & apply review decision;
+if (Still eligible for decision?) then (No [EF-06])
+  :Present decision-not-applicable result;
+  kill
+elseif (Processing failed?) then (Yes [EF-07])
+  :Present review-failure result;
+  kill
+else (Success)
+  |Database / Audit|
+  :4.1 Record review decision & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present resulting approved/rejected status;
+endif
+
+|WAH Central Administrator|
+:Acknowledge review outcome;
+stop
+@enduml
