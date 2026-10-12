@@ -1,0 +1,57 @@
+' UC-ASS-04 — Terminate Active Session
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access active-session management function;
+
+|WAHrden System|
+:1.1 Verify administrator authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present list of active sessions;
+endif
+
+|WAH Central Administrator|
+:2.0 Select session to terminate;
+
+|WAHrden System|
+:2.1 Validate session status;
+if (Session still active?) then (No [EF-02])
+  :Present session-unavailable result;
+  kill
+else (Yes)
+  :2.2 Present termination confirmation prompt;
+endif
+
+|WAH Central Administrator|
+if (Confirm termination?) then (No / Cancel [EF-03])
+  :Cancel termination action;
+  kill
+else (Yes [3.0])
+  :Confirm session termination;
+endif
+
+|WAHrden System|
+:3.1 Invalidate active session;
+if (Termination succeeded?) then (No [EF-04])
+  :Present termination failure result;
+  kill
+else (Yes)
+  |Database / Audit|
+  :3.2 Record session termination audit entry;
+  
+  |WAHrden System|
+  :3.3 Present successful termination result;
+endif
+
+|WAH Central Administrator|
+:Review updated session list;
+stop
+@enduml
