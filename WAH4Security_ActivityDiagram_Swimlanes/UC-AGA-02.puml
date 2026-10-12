@@ -1,0 +1,73 @@
+' UC-AGA-02 — Assign User Access
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access facility user access administration;
+
+|WAHrden System|
+:1.1 Verify administrative authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present user & facility selection function;
+endif
+
+|WAH Central Administrator|
+:2.0 Select target centralized user;
+
+|WAHrden System|
+if (User exists & available?) then (No [EF-02])
+  :Present user context unavailable;
+  kill
+else (Yes)
+  :2.1 Present current facility-specific access;
+endif
+
+|WAH Central Administrator|
+:2.2 Select facility and choose action\n(Establish [AF-01], Modify [AF-02], or Revoke [AF-03]);
+
+|WAHrden System|
+if (Facility context available?) then (No [EF-02])
+  :Present facility unavailable result;
+  kill
+else (Yes)
+  :3.0 Validate proposed access change;
+  if (Change valid and within governance rules?) then (No [EF-03])
+    :Present validation issues & prompt correction;
+    kill
+  else (Yes)
+    :Present validated access change for review;
+  endif
+endif
+
+|WAH Central Administrator|
+if (Confirm access change?) then (No / Cancel [EF-04])
+  :Cancel action;
+  kill
+else (Yes [3.1])
+  :Confirm access assignment/change;
+endif
+
+|WAHrden System|
+:4.0 Apply facility access change;
+if (Processing successful?) then (No [EF-05])
+  :Present access-change processing failure;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record access change & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present resulting facility-specific access;
+endif
+
+|WAH Central Administrator|
+:Review resulting access assignment;
+stop
+@enduml
