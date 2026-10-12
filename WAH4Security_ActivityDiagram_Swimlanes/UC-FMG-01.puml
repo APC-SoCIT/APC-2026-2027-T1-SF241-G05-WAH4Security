@@ -1,0 +1,86 @@
+' UC-FMG-01 — Onboard Healthcare Facility
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access healthcare facility administration;
+
+|WAHrden System|
+:1.1 Verify administrative authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :Present facility onboarding function;
+endif
+
+|WAH Central Administrator|
+:1.2 Select onboard healthcare facility;
+
+|WAHrden System|
+:2.0 Present facility information requirements;
+
+|WAH Central Administrator|
+:2.1 Provide required facility information;
+
+|WAHrden System|
+:2.2 Validate facility information & check conflicts;
+if (Information incomplete/invalid?) then (Yes [EF-02])
+  :Present validation issues & allow revision;
+  kill
+elseif (Duplicate or conflict found?) then (Yes [EF-03])
+  :Present conflict result & prevent onboarding;
+  kill
+else (Valid)
+endif
+
+|WAH Central Administrator|
+if (Configure initial modules?) then (Yes [3.0])
+  :Define initial module availability;
+  |WAHrden System|
+  :3.1 Validate module configuration against constraints;
+  if (Module configuration valid?) then (No [EF-04])
+    :Present configuration error; allow revision;
+    kill
+  else (Yes)
+  endif
+else (No [AF-01])
+  :Proceed without initial modules;
+endif
+
+|WAHrden System|
+:3.2 Present proposed facility summary for review;
+
+|WAH Central Administrator|
+if (Confirm onboarding?) then (No / Cancel [EF-05])
+  :Cancel onboarding action;
+  kill
+else (Yes [3.3])
+  :Confirm facility onboarding;
+endif
+
+|WAHrden System|
+:4.0 Register healthcare facility;
+if (Initial modules included?) then (Yes [4.1])
+  :Establish initial module configuration;
+  if (Module setup failed?) then (Yes [EF-06])
+    :Retain facility; mark module config as failed;
+  else (No)
+  endif
+else (No)
+endif
+
+|Database / Audit|
+:4.2 Record facility registration & audit trail;
+
+|WAHrden System|
+:4.3 Present resulting facility profile & configuration;
+
+|WAH Central Administrator|
+:Review registered facility confirmation;
+stop
+@enduml
