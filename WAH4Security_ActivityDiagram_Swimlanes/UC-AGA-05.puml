@@ -1,0 +1,78 @@
+' UC-AGA-05 — Request Facility User Access Change
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|Facility Administrator|
+start
+:1.0 Access access-change request function;
+
+|WAHrden System|
+:1.1 Verify authority and facility scope;
+if (Authorized?) then (No [EF-01])
+  :Present authorization denial;
+  kill
+else (Yes)
+  :1.2 Present scoped user search function;
+endif
+
+|Facility Administrator|
+:2.0 Enter user search criteria;
+
+|WAHrden System|
+:2.1 Search users within authorized facility scope;
+if (Matching user found?) then (No [EF-02])
+  :Present no-match result;
+  kill
+else (Yes)
+  :Present matching users;
+endif
+
+|Facility Administrator|
+:2.2 Select target centralized user;
+
+|WAHrden System|
+:2.3 Present user's current facility-specific access;
+
+|Facility Administrator|
+:3.0 Specify requested access change;
+
+|WAHrden System|
+:3.1 Validate requested changes;
+if (Outside authorized facility scope?) then (Yes [EF-04])
+  :Present scope validation error;
+  kill
+elseif (Change invalid or incomplete?) then (Yes [EF-03])
+  :Present validation issue & allow revision;
+  kill
+else (Valid)
+  :3.2 Present proposed request summary;
+endif
+
+|Facility Administrator|
+if (Confirm submission?) then (No / Cancel [EF-05])
+  :Cancel request submission;
+  kill
+else (Yes [3.3])
+  :Confirm submission;
+endif
+
+|WAHrden System|
+:4.0 Create access-change request in 'Pending' state;
+if (Submission successful?) then (No [EF-06])
+  :Present submission processing failure;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record access-change request & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present Pending request confirmation;
+endif
+
+|Facility Administrator|
+:Acknowledge submission confirmation;
+stop
+@enduml
