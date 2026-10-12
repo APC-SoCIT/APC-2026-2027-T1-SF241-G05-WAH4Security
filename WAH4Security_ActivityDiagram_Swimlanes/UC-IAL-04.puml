@@ -1,0 +1,75 @@
+' UC-ASS-01 — Change Authentication Credential
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Service User|
+start
+:1.0 Access credential-maintenance function;
+
+|WAHrden System|
+:1.1 Verify authenticated context;
+if (Context verified?) then (No [EF-01])
+  :Deny credential change & present error;
+  kill
+else (Yes)
+  :1.2 Present credential-change requirements;
+endif
+
+|WAH Service User|
+:2.0 Provide current & proposed credentials;
+
+|WAHrden System|
+:2.1 Verify current credential & validate proposed credential;
+if (Current credential valid?) then (No [EF-02])
+  :Present current credential verification failure;
+  kill
+else (Yes)
+  if (Proposed credential meets policy?) then (No [EF-03])
+    :Present policy validation issue & prompt revision;
+    kill
+  else (Yes)
+    if (Additional auth required?) then (Yes [2.2])
+      :Request additional authentication / MFA;
+      |WAH Service User|
+      :2.3 Provide additional auth details;
+      |WAHrden System|
+      :2.4 Verify additional auth;
+      if (Verification successful?) then (No [EF-04])
+        :Deny change due to MFA failure;
+        kill
+      else (Yes)
+      endif
+    else (No)
+    endif
+    :3.0 Present final confirmation prompt;
+  endif
+endif
+
+|WAH Service User|
+if (Confirm change?) then (No / Cancel [EF-05])
+  :Cancel credential change;
+  kill
+else (Yes [3.1])
+  :Confirm credential change;
+endif
+
+|WAHrden System|
+:4.0 Apply credential update;
+if (Update successful?) then (No [EF-06])
+  :Present credential-change failure result;
+  kill
+else (Yes)
+  |Database / Audit|
+  :4.1 Record credential-change audit event;
+  
+  |WAHrden System|
+  :4.2 Present success confirmation;
+endif
+
+|WAH Service User|
+:Acknowledge successful update;
+stop
+@enduml
