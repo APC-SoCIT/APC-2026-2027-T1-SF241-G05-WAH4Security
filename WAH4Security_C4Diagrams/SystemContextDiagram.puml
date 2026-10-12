@@ -1,0 +1,41 @@
+' System Context Diagram
+
+@startuml C4_Level1_System_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title System Context Diagram - WAHrden IAM Platform
+
+Person(central_admin, "WAH Central Admin", "Governs central user identities, roles, facility scopes, and reviews audit reports.")
+Person(facility_admin, "Facility Admin", "Submits facility-scoped user onboarding and module change requests.")
+Person(service_user, "WAH Service User", "Healthcare personnel (Doctors, Nurses, Clinic, and Hospital staff).")
+
+System(wahrden, "WAHrden IAM System\n(Security Team Scope)", "Centralized Identity Provider, SSO (OIDC/OAuth2), Authentication, PDP Authorization, Session Control, and Internal Audit.")
+
+System_Ext(wah4clinic, "WAH4Clinic\n(External Team)", "Out-patient clinical system handling consultations, dialysis sessions, and local clinic workflows.")
+System_Ext(wah4hospital, "WAH4Hospital\n(External Team)", "In-patient hospital management system handling admissions, vitals, discharges, and billing.")
+System_Ext(wah4pc, "WAH4PC\n(External Team)", "Primary care clinical record system for consultations, diagnoses, and orders.")
+System_Ext(wah4interop, "WAH4Interop / OpenHIM\n(External Team)", "Health Information Mediator orchestrating HL7 FHIR standards, e-Claims, and registry exchanges.")
+System_Ext(external_systems, "External Health Ecosystem", "PhilHealth APIs, National Health Registries, and Partner HIEs.")
+
+Rel(service_user, wahrden, "Authenticates via SSO, manages credentials, edits own profile", "HTTPS / OIDC")
+Rel(central_admin, wahrden, "Configures accounts, roles, facilities, and inspects audit reports", "HTTPS")
+Rel(facility_admin, wahrden, "Submits onboarding and module requests", "HTTPS")
+
+Rel(service_user, wah4clinic, "Uses outpatient workflows", "HTTPS")
+Rel(service_user, wah4hospital, "Uses inpatient workflows", "HTTPS")
+Rel(service_user, wah4pc, "Uses primary care features", "HTTPS")
+
+Rel(wah4clinic, wahrden, "Validates SSO tokens & evaluates action authorization (UC-AGA-07)", "HTTPS / REST")
+Rel(wah4hospital, wahrden, "Validates SSO tokens & evaluates action authorization (UC-AGA-07)", "HTTPS / REST")
+Rel(wah4pc, wahrden, "Validates SSO tokens & evaluates action authorization (UC-AGA-07)", "HTTPS / REST")
+
+Rel(wah4clinic, wah4interop, "Dispatches claim & referral transactions", "HTTPS / REST")
+Rel(wah4pc, wah4interop, "Dispatches FHIR payloads & registry data", "HTTPS / REST")
+Rel(wah4hospital, wah4interop, "Dispatches billing & PhilHealth claims", "HTTPS / REST")
+
+Rel(wah4interop, wahrden, "Verifies service authorization & token validity", "HTTPS / REST")
+Rel(wah4interop, external_systems, "Exchanges clinical & claim transactions", "mTLS / HTTPS")
+
+@enduml
