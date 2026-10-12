@@ -1,0 +1,81 @@
+' UC-IAL-02 — Change User Account Status
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access account lifecycle administration;
+
+|WAHrden System|
+:1.1 Verify administrator authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Present user search/selection interface;
+endif
+
+|WAH Central Administrator|
+:2.0 Enter search criteria;
+
+|WAHrden System|
+:2.1 Search centralized identities;
+if (Matching account found?) then (No [EF-02])
+  :Present no-match result;
+  kill
+else (Yes)
+  :Present matching results;
+endif
+
+|WAH Central Administrator|
+:2.2 Select centralized user account;
+
+|WAHrden System|
+:2.3 Present current lifecycle status & options;
+
+|WAH Central Administrator|
+:3.0 Select requested status transition\n(Active, Inactive, or Deactivated);
+
+|WAHrden System|
+:3.1 Evaluate requested change against lifecycle rules;
+if (Transition permitted?) then (No [EF-03])
+  :Present invalid-transition result;
+  kill
+else (Yes)
+  :3.2 Present proposed status change & system impact;
+endif
+
+|WAH Central Administrator|
+if (Confirm status change?) then (No / Cancel [EF-04])
+  :Cancel status change;
+  kill
+else (Yes [3.3])
+  :Confirm status change;
+endif
+
+|WAHrden System|
+:4.0 Attempt to apply lifecycle status change;
+if (Processing successful?) then (No [EF-05])
+  :Retain existing status & present processing failure;
+  kill
+else (Yes)
+  if (Resulting status == Deactivated?) then (Yes [4.1])
+    :Invalidate active WAHrden sessions;
+  else (No)
+    :Retain existing session states;
+  endif
+  
+  |Database / Audit|
+  :4.2 Record status change & audit trail;
+  
+  |WAHrden System|
+  :4.3 Present resulting account status;
+endif
+
+|WAH Central Administrator|
+:Review updated status confirmation;
+stop
+@enduml
