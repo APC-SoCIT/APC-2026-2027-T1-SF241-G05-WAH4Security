@@ -1,0 +1,84 @@
+' UC-AGA-04 — Review Facility User Onboarding Request
+
+@startuml
+skinparam conditionStyle inside
+skinparam ActivityDiamondBackgroundColor #FFEAA7
+skinparam ActivityBackgroundColor #DFE6E9
+
+|WAH Central Administrator|
+start
+:1.0 Access onboarding request review function;
+
+|WAHrden System|
+:1.1 Verify centralized review authority;
+if (Authorized?) then (No [EF-01])
+  :Present access-denied result;
+  kill
+else (Yes)
+  :1.2 Retrieve & present pending onboarding requests;
+endif
+
+|WAH Central Administrator|
+:2.0 Select onboarding request to review;
+
+|WAHrden System|
+:2.1 Check request eligibility;
+if (Request exists & still Pending?) then (No [EF-02])
+  :Present request unavailable/stale status;
+  kill
+else (Yes)
+  :Present full request details & facility context;
+endif
+
+|WAH Central Administrator|
+:2.2 Review request information;
+if (Review info valid?) then (No [EF-03])
+  |WAHrden System|
+  :Present validation issue; hold decision;
+  kill
+else (Yes)
+endif
+
+|WAH Central Administrator|
+if (Review Decision?) then (Approve [3.0])
+  :Select Approve;
+  |WAHrden System|
+  :3.1 Present approval confirmation prompt;
+elseif (Modify and Approve [AF-01])
+  :Make permitted modifications & select Approve;
+  |WAHrden System|
+  :Validate modifications & present confirmation;
+else (Reject [AF-02])
+  :Select Reject;
+  |WAHrden System|
+  :Present rejection confirmation prompt;
+endif
+
+|WAH Central Administrator|
+if (Confirm decision?) then (No / Cancel [EF-04])
+  :Cancel review action;
+  kill
+else (Yes [3.2])
+  :Confirm decision;
+endif
+
+|WAHrden System|
+:4.0 Validate final status & apply review decision;
+if (Request still eligible for decision?) then (No [EF-05])
+  :Present decision-not-applicable result;
+  kill
+elseif (Processing failed?) then (Yes [EF-06])
+  :Present review-failure result;
+  kill
+else (Success)
+  |Database / Audit|
+  :4.1 Record decision (Approved/Rejected) & audit trail;
+  
+  |WAHrden System|
+  :4.2 Present resulting review status;
+endif
+
+|WAH Central Administrator|
+:Review completed decision output;
+stop
+@enduml
