@@ -1,61 +1,57 @@
 ' Container Diagram
 
-@startuml C4_Level2_Container
+@startuml C4_Level2_Container_Revised
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
 LAYOUT_WITH_LEGEND()
 
-title Container Diagram - WAHrden Platform Architecture
+title Container Diagram - WAHrden IAM & Governance Architecture
 
-Person(users, "WAH Users & Administrators", "Central Admins, Facility Admins, and Healthcare Personnel.")
+Person(users, "WAH Ecosystem Actors", "Central Administrators, Facility Administrators, and WAH Service Users.")
+System_Ext(participating_services, "Participating WAH Services", "WAH-for-Clinics, WAH-for-Hospitals, WAH-for-PrimaryCare, and WAH4Interop.")
 
-System_Ext(wah4clinic, "WAH4Clinic\n(External Team)", "Out-patient clinical service.")
-System_Ext(wah4hospital, "WAH4Hospital\n(External Team)", "In-patient hospital management service.")
-System_Ext(wah4pc, "WAH4PC\n(External Team)", "Primary care clinical service.")
-System_Ext(wah4interop, "WAH4Interop / OpenHIM\n(External Team)", "Health Information Mediator routing external claims and FHIR exchanges.")
-
-System_Boundary(wahrden_boundary, "WAHrden IAM System (Security Team Scope)") {
-    Container(auth_portal, "WAHrden SSO & Access Portal", "Next.js, TypeScript", "User login, MFA challenges, self-service credential recovery, and profile management.")
-    Container(admin_console, "WAHrden Governance Admin Web", "Next.js, TypeScript", "Centralized administrative console for RBAC, facility scoping, and request governance.")
-    Container(api_gateway, "WAHrden Internal Gateway", "Reverse Proxy / Ingress", "Ingress traffic routing, TLS termination, and rate limiting.")
+System_Boundary(wahrden_boundary, "WAHrden Platform System Boundary") {
+    Container(user_portal, "WAH User Access Portal", "Single Page Application (React / Vite)", "Presents participating service selection, authentication challenges, self-service credential changes, and own-profile updates (UC-ASS-01 to 03, UC-IAL-03).")
+    Container(admin_portal, "WAHrden Central Governance Console", "Single Page Application (React / Vite)", "Interface for Central & Facility Admins to manage RBAC, facility onboarding, request approvals, and audit log inspection (UC-AGA, UC-FMG, UC-OSO).")
     
-    Container(iam_service, "Identity & Authentication Service", "NestJS, TypeScript", "OIDC/OAuth2 SSO provider, credential management, and session lifecycle.")
-    Container(gov_service, "Governance & PDP Service", "NestJS, TypeScript", "Policy Decision Point evaluating facility scopes, roles, module availability, and approval workflows.")
-    Container(oversight_service, "Operational & Security Oversight Service", "NestJS, TypeScript", "Aggregates internal audit records and compiles operational oversight reports.")
-    
-    ContainerDb(session_cache, "Session & Cache Store", "Redis", "Maintains active user sessions, token revocation blocklists, and rate-limiting counters.")
-    ContainerDb(wahrden_db, "WAHrden Core Database", "PostgreSQL", "Stores user identities, roles, facility metadata, and access requests.")
-    ContainerDb(audit_store, "Internal Audit & Event Store", "PostgreSQL", "Immutable storage for authentication logs, session events, and PDP decisions.")
+    Container(api_gateway, "API Gateway / Reverse Proxy", "Nginx / Traefik", "Handles TLS termination, path routing, rate limiting, and request header sanitization.")
+
+    Container(auth_service, "Authentication & Session Service", "NestJS / Node.js", "Handles credential verification, MFA challenge flow, token lifecycle, and administrative session termination (UC-ASS-01 to 04).")
+    Container(identity_service, "Identity & Account Lifecycle Service", "NestJS / Node.js", "Manages user profiles, account state transitions (Active, Inactive, Deactivated), and background 51-day inactivity evaluations (UC-IAL-01 to 03).")
+    Container(pdp_service, "Access Governance & PDP Service", "NestJS / Node.js", "Executes Policy Decision Point (PDP) checks (UC-AGA-07), request governance review pipelines (UC-AGA-03 to 06), and facility module policies (UC-FMG-01 to 05).")
+    Container(audit_service, "Operational & Oversight Service", "NestJS / Node.js", "Ingests security events, queries administrative actions, and generates operational reports (UC-OSO-01, UC-OSO-02).")
+
+    ContainerDb(redis_cache, "Active Session & Token Cache", "Redis", "Maintains active user session tokens, rate-limit counters, and revoked token blacklists (UC-ASS-04).")
+    ContainerDb(wahrden_db, "WAHrden Primary RDBMS", "PostgreSQL", "Stores user identities, credentials, recovery methods, facilities, roles, permissions, access requests, and module configs.")
+    ContainerDb(audit_db, "Audit & Security Event Store", "PostgreSQL", "Dedicated storage for immutable audit trail records, administrative reviews, and PDP decisions.")
 }
 
-Rel(users, auth_portal, "Authenticates via SSO", "HTTPS")
-Rel(users, admin_console, "Performs governance & administrative actions", "HTTPS")
+' User Ingress
+Rel(users, user_portal, "Navigates to login or manage own credentials", "HTTPS")
+Rel(users, admin_portal, "Conducts administrative workflows", "HTTPS")
 
-Rel(auth_portal, api_gateway, "Delegates UI requests", "HTTPS / JSON")
-Rel(admin_console, api_gateway, "Delegates admin requests", "HTTPS / JSON")
+Rel(user_portal, api_gateway, "Submits user credentials & profile changes", "HTTPS / JSON")
+Rel(admin_portal, api_gateway, "Submits governance & audit queries", "HTTPS / JSON")
 
-Rel(api_gateway, iam_service, "Routes Auth & Session requests", "HTTP / gRPC")
-Rel(api_gateway, gov_service, "Routes Policy & Request calls", "HTTP / gRPC")
-Rel(api_gateway, oversight_service, "Routes Oversight & Audit requests", "HTTP / gRPC")
+' Gateway Routing
+Rel(api_gateway, auth_service, "Routes /api/v1/auth/* & /api/v1/sessions/*", "HTTP / REST")
+Rel(api_gateway, identity_service, "Routes /api/v1/identities/* & /api/v1/profile/*", "HTTP / REST")
+Rel(api_gateway, pdp_service, "Routes /api/v1/pdp/*, /api/v1/requests/*, /api/v1/facilities/*", "HTTP / REST")
+Rel(api_gateway, audit_service, "Routes /api/v1/oversight/* & /api/v1/reports/*", "HTTP / REST")
 
-Rel(wah4clinic, iam_service, "Validates SSO Tokens via JWKS", "HTTPS / OIDC")
-Rel(wah4clinic, gov_service, "Evaluates user authorization & module entitlement (UC-AGA-07)", "HTTPS / REST")
+' External Service PDP Checks
+Rel(participating_services, api_gateway, "Calls authorization evaluation (UC-AGA-07) and validates session token", "HTTPS / JSON")
 
-Rel(wah4hospital, iam_service, "Validates SSO Tokens via JWKS", "HTTPS / OIDC")
-Rel(wah4hospital, gov_service, "Evaluates user authorization & module entitlement (UC-AGA-07)", "HTTPS / REST")
+' Service to Storage Interconnections
+Rel(auth_service, redis_cache, "Writes and invalidates active sessions (UC-ASS-04)", "Redis Protocol")
+Rel(auth_service, wahrden_db, "Validates credentials & updates password state", "TypeORM / SQL")
+Rel(identity_service, wahrden_db, "CRUD on users, status changes, and inactivity flag", "TypeORM / SQL")
+Rel(pdp_service, wahrden_db, "Evaluates user-facility roles, module configs, and request records", "TypeORM / SQL")
 
-Rel(wah4pc, iam_service, "Validates SSO Tokens via JWKS", "HTTPS / OIDC")
-Rel(wah4pc, gov_service, "Evaluates user authorization & module entitlement (UC-AGA-07)", "HTTPS / REST")
-
-Rel(wah4interop, iam_service, "Validates service tokens / OAuth2 claims", "HTTPS / REST")
-Rel(wah4interop, gov_service, "Verifies external exchange permissions", "HTTPS / REST")
-
-Rel(iam_service, session_cache, "Reads/Writes active sessions (UC-ASS-04)", "Redis Protocol")
-Rel(iam_service, wahrden_db, "Reads/Writes accounts and credentials", "SQL / TypeORM")
-Rel(gov_service, wahrden_db, "Reads/Writes facility scopes, roles, and requests", "SQL / TypeORM")
-
-Rel(iam_service, audit_store, "Writes authentication logs", "SQL")
-Rel(gov_service, audit_store, "Writes PDP decisions & governance trails", "SQL")
-Rel(oversight_service, audit_store, "Queries audit logs for reports (UC-OSO-01, 02)", "SQL")
+' Centralized Audit Trail Ingestion
+Rel(auth_service, audit_service, "Dispatches auth & session termination events", "Internal In-Memory / EventBus")
+Rel(pdp_service, audit_service, "Dispatches PDP Authorized/Denied & review decisions", "Internal In-Memory / EventBus")
+Rel(identity_service, audit_service, "Dispatches account status & profile modification events", "Internal In-Memory / EventBus")
+Rel(audit_service, audit_db, "Persists immutable audit log rows (audit_logs table)", "TypeORM / SQL")
 
 @enduml
