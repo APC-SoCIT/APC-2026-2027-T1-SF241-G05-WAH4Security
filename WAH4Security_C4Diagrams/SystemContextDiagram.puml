@@ -1,47 +1,54 @@
 ' System Context Diagram
 
-@startuml C4_Level1_System_Context_Revised
+@startuml C4_Level1_System_Context_OpenHIM_OpenSource
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
 LAYOUT_WITH_LEGEND()
 
-title System Context Diagram - WAHrden Platform (Security & Central Governance)
+title System Context Diagram - WAH Enterprise (WAHrden Top-Level Gateway)
 
-Person(central_admin, "WAH Central Administrator", "Centrally manages identities, account statuses, RBAC models, healthcare facilities, module governance, and oversight reports.")
-Person(facility_admin, "Facility Administrator", "Administers facility-scoped operations; submits user onboarding, access change, and facility module change requests.")
-Person(service_user, "WAH Service User", "Healthcare personnel (Doctors, Nurses, Clinic Staff) accessing participating services.")
+' ==============================================================================
+' ACTORS
+' ==============================================================================
+Person(central_admin, "WAH Central Administrator", "Combined administrative authority & employee. Governs identities, roles, facility onboarding, and system audits.")
+Person(facility_admin, "Facility Administrator", "Scoped local administrator. Submits user onboarding, access changes, and module change requests.")
+Person(service_user, "WAH Service User", "Healthcare personnel (Doctors, Nurses, MedTechs) who authenticate via SSO, update profile details, and manage credentials.")
 
-Enterprise_Boundary(wah_ecosystem, "Wireless Access for Health (WAH) Ecosystem") {
-    System(wahrden, "WAHrden Platform\n[Security & Central IAM]", "Centralized governance authority providing user identity lifecycle, authentication, session security, centralized RBAC, facility scoping, and policy decision enforcement (PDP).")
+' ==============================================================================
+' TOP-LEVEL SYSTEM: WAHRDEN (WAH4SECURITY)
+' ==============================================================================
+System(wahrden, "WAHrden Platform\n[WAH4Security - Developed by Us]\n(Operates Deployed OpenHIM Gateway)", "Central SSO trust authority and Policy Decision Point (PDP). Deploys and manages OpenHIM as its open-source API gateway to intercept requests, enforce session cookies, evaluate RBAC/module rules, and log security audits.")
 
-    System_Ext(wah4clinic, "WAH-for-Clinics\n(Participating Service)", "Clinic EMR handling patient records, consultations, diagnostics, and local facility operations.")
-    System_Ext(wah4hospital, "WAH-for-Hospitals\n(Participating Service)", "Hospital information management system managing in-patient care, admissions, and ward workflows.")
-    System_Ext(wah4pc, "WAH-for-PrimaryCare\n(Participating Service)", "Primary care information system managing community consultations, vital signs, and referrals.")
-    System_Ext(wah4interop, "WAH4Interop / OpenHIM\n(Mediator Service)", "Health Information Mediator routing transactions, PhilHealth e-Claims, and HIE integrations.")
+' ==============================================================================
+' PARTICIPATING ENTERPRISE TEAMS & SERVICES
+' ==============================================================================
+Enterprise_Boundary(wah_ecosystem, "WAH Healthcare Ecosystem") {
+    System_Ext(wah4clinic, "WAH4Clinic", "Participating outpatient EMR service handling checkups, triage, and pharmacy.")
+    System_Ext(wah4hospital, "WAH4Hospital", "Participating inpatient hospital service managing admissions and bed wards.")
+    System_Ext(wah4interop, "WAH4Interoperability", "Partner team handling health data standards, FHIR mappings, and payload formats.")
 }
 
-System_Ext(external_systems, "External Health Agencies", "PhilHealth servers, DOH registries, and National Health Repositories.")
+System_Ext(external_agencies, "External Health Agencies", "PhilHealth e-Claims, DOH Registries, and National Health Repositories.")
 
-' User Interactions with WAHrden
-Rel(service_user, wahrden, "Authenticates via central portal, updates own profile, recovers credentials\n(UC-ASS-01 to 03, UC-IAL-03)", "HTTPS / Web Browser")
-Rel(central_admin, wahrden, "Administers identities, grants facility access, configures modules, reviews audit trails\n(UC-IAL-01/02, UC-AGA-01/02/04/06, UC-FMG-01/03/05, UC-OSO-01/02)", "HTTPS / Web Browser")
-Rel(facility_admin, wahrden, "Submits scoped onboarding, access modification, and module change requests\n(UC-AGA-03/05, UC-FMG-04)", "HTTPS / Web Browser")
+' ==============================================================================
+' INTERACTIONS
+' ==============================================================================
 
-' User Interactions with Participating Services
-Rel(service_user, wah4clinic, "Logs into and operates clinical workflows", "HTTPS")
-Rel(service_user, wah4hospital, "Logs into and operates in-patient workflows", "HTTPS")
-Rel(service_user, wah4pc, "Logs into and operates primary health workflows", "HTTPS")
+' 1. SSO INGRESS
+Rel(central_admin, wahrden, "Administers enterprise accounts, facilities, roles, and audits", "HTTPS / Browser")
+Rel(facility_admin, wahrden, "Authenticates & submits facility onboarding/access proposals", "HTTPS / Browser")
+Rel(service_user, wahrden, "1. Signs in via Central SSO portal (obtains secure session cookie/JWT)", "HTTPS / OIDC")
 
-' Participating Services Auth Checks with WAHrden
-Rel(wah4clinic, wahrden, "Requests authorization evaluation & verifies active session\n(UC-AGA-07, UC-ASS-03)", "HTTPS / JSON API")
-Rel(wah4hospital, wahrden, "Requests authorization evaluation & verifies active session\n(UC-AGA-07, UC-ASS-03)", "HTTPS / JSON API")
-Rel(wah4pc, wahrden, "Requests authorization evaluation & verifies active session\n(UC-AGA-07, UC-ASS-03)", "HTTPS / JSON API")
-Rel(wah4interop, wahrden, "Verifies service client tokens & system authority", "HTTPS / JSON API")
+' 2. DOWNSTREAM ACCESS
+Rel(service_user, wah4clinic, "2. Accesses outpatient consults (Shared SSO session recognized)", "HTTPS")
+Rel(service_user, wah4hospital, "2. Accesses inpatient rounds (Shared SSO session recognized)", "HTTPS")
 
-' Interop & External Transactions
-Rel(wah4clinic, wah4interop, "Dispatches insurance claims & diagnostic payloads", "HTTPS / REST")
-Rel(wah4hospital, wah4interop, "Dispatches admission data & billing claims", "HTTPS / REST")
-Rel(wah4pc, wah4interop, "Dispatches community registry data", "HTTPS / REST")
-Rel(wah4interop, external_systems, "Exchanges transactions via FHIR & PhilHealth standards", "mTLS / HTTPS")
+' 3. CLINICAL CALLS VIA DEPLOYED OPENHIM GATEWAY
+Rel(wah4clinic, wahrden, "Routes clinical API transactions & PDP check requests (UC-AGA-07) through OpenHIM", "HTTPS / REST")
+Rel(wah4hospital, wahrden, "Routes inpatient transactions & PDP check requests (UC-AGA-07) through OpenHIM", "HTTPS / REST")
+Rel(wah4interop, wahrden, "Exchanges interoperability payloads mediated via OpenHIM", "HTTPS / REST")
+
+' 4. OUTBOUND DISPATCH
+Rel(wahrden, external_agencies, "Dispatches authorized FHIR payloads & e-Claims via OpenHIM", "mTLS / HTTPS")
 
 @enduml
