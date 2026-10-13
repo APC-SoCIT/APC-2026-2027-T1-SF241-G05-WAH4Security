@@ -1,63 +1,105 @@
 ' Component Diagram
 
-@startuml C4_Level3_Component_Revised
+@startuml C4_Level3_Component_WAHrden_Backend
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
 LAYOUT_WITH_LEGEND()
 
-title Component Diagram - WAHrden Access Governance & PDP Service
+title Component Diagram - WAHrden Core Backend Application (NestJS Scope)
 
-Container_Ext(api_gw, "API Gateway", "Reverse Proxy")
-Container_Ext(participating_service, "Participating WAH Service", "e.g., WAH-for-Clinics (UC-AGA-07 Consumer)")
-Container_Ext(audit_service, "Oversight & Audit Service", "Central Event Logger")
-ContainerDb(wahrden_db, "WAHrden Core Database", "PostgreSQL")
+' ==============================================================================
+' EXTERNAL CONTAINERS (BOUND TO THE BACKEND)
+' ==============================================================================
+Container(user_portal, "WAH User Access Portal", "React / Vite", "Central Login, credential update & profile self-service.")
+Container(admin_console, "Governance Admin Console", "React / Vite", "Maker-Checker approval queue, facility & role config.")
+Container(openhim_gateway, "OpenHIM Gateway & Mediator", "OpenHIM / Node.js (Open-Source)", "Deployed PEP gateway routing API traffic & enforcing TLS.")
 
-Container_Boundary(pdp_container, "Access Governance & PDP Service Container") {
-    Component(authz_controller, "Authorization Evaluation Controller", "NestJS Controller", "Exposes POST /api/v1/authz/evaluate for Participating WAH Services (UC-AGA-07).")
-    Component(governance_controller, "Governance Request Controller", "NestJS Controller", "Exposes endpoints for submitting and reviewing onboarding & access change requests (UC-AGA-03 to 06).")
-    Component(module_controller, "Facility Module Controller", "NestJS Controller", "Exposes endpoints for configuring facility modules & module change requests (UC-FMG-01 to 05).")
+ContainerDb(redis_cache, "Active Session & Token Cache", "Redis", "Active sessions, cookies, token revocation blocklists.")
+ContainerDb(wahrden_db, "WAHrden Primary RDBMS", "PostgreSQL (3NF)", "User identities, facility configs, roles, permissions.")
+ContainerDb(audit_db, "Audit & Security Event Store", "PostgreSQL", "Append-only table storing immutable security audit trails.")
 
-    Component(token_guard, "Token & Context Guard", "NestJS Guard", "Validates bearer session token, extracts subject identity, facility context, and client credentials.")
-    Component(pdp_engine, "Policy Decision Engine (PDP)", "Domain Service", "Executes the multi-stage authorization pipeline defined in UC-AGA-07 Step 2.0-3.0.")
+' ==============================================================================
+' WAHRDEN BACKEND CONTAINER BOUNDARY
+' ==============================================================================
+Container_Boundary(backend_app, "WAHrden Core Backend Application (NestJS / TypeScript)") {
 
-    Component(identity_validator, "Identity & Account State Validator", "Domain Service", "Checks user identity exists and lifecycle status is eligible (Reject if Deactivated / Locked).")
-    Component(facility_scope_evaluator, "Facility Scope Evaluator", "Domain Service", "Evaluates user's facility-scoped access assignment (facility_user_access_assignments table).")
-    Component(rbac_evaluator, "RBAC & Permission Evaluator", "Domain Service", "Matches requested action against assigned role permissions (role_permissions table).")
-    Component(module_evaluator, "Facility Module Availability Evaluator", "Domain Service", "Verifies whether the requested functional module is enabled for the target facility (UC-FMG-03).")
+    ' Ingress Security & Routing Middleware
+    Component(auth_guard, "SSO Session Guard & Cookie Parser", "NestJS Guard", "Validates incoming HTTP-only cookies/JWTs against Redis blacklist before routing.")
+    Component(audit_interceptor, "Audit Logging Interceptor", "NestJS Interceptor", "Asynchronously captures caller identity, IP, action, timestamp, and dispatches to Audit Store.")
 
-    Component(request_workflow_service, "Request Governance Workflow Service", "Domain Service", "Coordinates request submissions and decisions (Approve, Modify and Approve, Reject) with state retention.")
-    Component(audit_event_emitter, "Governance Audit Emitter", "Domain Service", "Emits structured audit payloads (Action, Actor, Target Entity, Decision, Details) to the oversight service.")
-    Component(repo_layer, "Governance Repository Layer", "TypeORM Repository", "Encapsulates queries for facilities, modules, roles, permissions, and request records.")
+    ' Module 1: Identity & Account Lifecycle (IAL)
+    package "Identity & Account Lifecycle (IAL)" {
+        Component(ial_controller, "Identity Controller", "NestJS Controller", "Endpoints for account provisioning, status updates, and profile maintenance (UC-IAL-01..03).")
+        Component(ial_service, "Identity & Account Service", "NestJS Injectable", "Enforces identity conflict checks, account status transitions, and user profile validations.")
+        Component(inactivity_worker, "Inactivity Deprivileging Worker", "NestJS Cron / Task Scheduler", "Scheduled batch job running daily at 00:00 UTC to set accounts idle for >= 51 days to Inactive (UC-IAL-02).")
+    }
+
+    ' Module 2: Authentication & Session Security (ASS)
+    package "Authentication & Session Security (ASS)" {
+        Component(ass_controller, "Auth & Session Controller", "NestJS Controller", "Endpoints for login, SSO cookie exchange, password recovery, and admin session kill-switch (UC-ASS-01..04).")
+        Component(ass_service, "Auth & Session Engine", "NestJS Injectable", "Handles argon2 password hashing, recovery token verification, session lifecycle, and session invalidation cascades.")
+    }
+
+    ' Module 3: Access Governance & Authorization (AGA)
+    package "Access Governance & Authorization (AGA)" {
+        Component(pdp_controller, "PDP & Access Governance Controller", "NestJS Controller", "Endpoints for role config, Maker-Checker requests, and runtime policy decisions (UC-AGA-01..07).")
+        Component(request_workflow_service, "Maker-Checker Workflow Engine", "NestJS Injectable", "Manages 2-tier approval workflows (PENDING -> APPROVED / MODIFIED / REJECTED) for onboarding & access change requests (UC-AGA-03..06).")
+        Component(pdp_engine, "Policy Decision Point (PDP) Engine", "NestJS Injectable", "4-Stage live evaluation pipeline: checks account status, facility assignment, Doctor vs Nurse role permissions, and active module licenses (UC-AGA-07).")
+    }
+
+    ' Module 4: Facility & Module Governance (FMG)
+    package "Facility & Module Governance (FMG)" {
+        Component(fmg_controller, "Facility & Module Controller", "NestJS Controller", "Endpoints for hospital/clinic onboarding, facility profiles, and module change queues (UC-FMG-01..05).")
+        Component(fmg_service, "Facility & Module Service", "NestJS Injectable", "Enforces facility code uniqueness, per-facility module toggling, and module request adjudication.")
+    }
+
+    ' Module 5: Operational & Security Oversight (OSO)
+    package "Operational & Security Oversight (OSO)" {
+        Component(oso_controller, "Oversight & Reporting Controller", "NestJS Controller", "Endpoints for telemetry dashboards and compliance report export (UC-OSO-01..02).")
+        Component(oso_service, "Operational & Report Generator", "NestJS Injectable", "Compiles system audit events, generates structured tabular compliance views, and formats signed PDF/CSV exports.")
+    }
 }
 
-' Ingress Interactions
-Rel(participating_service, authz_controller, "1.0 Submits authorization request\n(user token, requested action, facility context)", "HTTPS / POST")
-Rel(api_gw, governance_controller, "Routes user onboarding & access change requests", "HTTP")
-Rel(api_gw, module_controller, "Routes facility onboarding & module configuration", "HTTP")
+' ==============================================================================
+' COMPONENT INTERACTIONS & DATA FLOWS
+' ==============================================================================
 
-' Controller Handshake
-Rel(authz_controller, token_guard, "Extracts & verifies token authenticity", "In-process")
-Rel(authz_controller, pdp_engine, "Passes evaluated request context", "In-process")
-Rel(governance_controller, request_workflow_service, "Dispatches onboarding/access requests", "In-process")
-Rel(module_controller, request_workflow_service, "Dispatches module changes", "In-process")
+' Ingress from Gateway and Portals through Guards
+Rel(openhim_gateway, auth_guard, "Forwards API requests & clinical authz checks", "HTTP / Internal")
+Rel(user_portal, auth_guard, "Submits login & self-service actions", "HTTPS / JSON")
+Rel(admin_console, auth_guard, "Submits admin configurations & reviews", "HTTPS / JSON")
 
-' PDP Sequential Pipeline (UC-AGA-07 Steps)
-Rel(pdp_engine, identity_validator, "Step 2.1: Verifies centralized identity eligibility", "In-process")
-Rel(pdp_engine, facility_scope_evaluator, "Step 2.2: Evaluates facility-specific access assignment", "In-process")
-Rel(pdp_engine, rbac_evaluator, "Step 2.3: Evaluates role & permission requirement", "In-process")
-Rel(pdp_engine, module_evaluator, "Step 2.4: Evaluates facility module availability", "In-process")
+Rel(auth_guard, ass_controller, "Routes /auth/*", "")
+Rel(auth_guard, ial_controller, "Routes /identities/*", "")
+Rel(auth_guard, pdp_controller, "Routes /pdp/* & /governance/*", "")
+Rel(auth_guard, fmg_controller, "Routes /facilities/*", "")
+Rel(auth_guard, oso_controller, "Routes /oversight/*", "")
 
-' Data Access
-Rel(identity_validator, repo_layer, "Reads users & account status", "Method Call")
-Rel(facility_scope_evaluator, repo_layer, "Queries facility_user_access_assignments", "Method Call")
-Rel(rbac_evaluator, repo_layer, "Queries roles & role_permissions", "Method Call")
-Rel(module_evaluator, repo_layer, "Queries facility_module_configurations", "Method Call")
-Rel(request_workflow_service, repo_layer, "Creates/Updates request records (Pending/Approved/Rejected)", "Method Call")
-Rel(repo_layer, wahrden_db, "Executes SQL statements", "PostgreSQL Protocol")
+' Controller to Service Bindings
+Rel(ass_controller, ass_service, "Invokes auth logic", "")
+Rel(ial_controller, ial_service, "Invokes identity management", "")
+Rel(pdp_controller, request_workflow_service, "Invokes request queues", "")
+Rel(pdp_controller, pdp_engine, "Invokes runtime evaluation (UC-AGA-07)", "")
+Rel(fmg_controller, fmg_service, "Invokes facility/module rules", "")
+Rel(oso_controller, oso_service, "Invokes report generation", "")
 
-' Audit Logging Output
-Rel(pdp_engine, audit_event_emitter, "Dispatches Authorized / Denied decisions (Step 3.1)", "In-process")
-Rel(request_workflow_service, audit_event_emitter, "Dispatches review decisions (Approved / Rejected)", "In-process")
-Rel(audit_event_emitter, audit_service, "Transmits immutable audit record", "HTTP / EventBus")
+' Internal Service-to-Service Invocations
+Rel(inactivity_worker, ial_service, "Triggers 51-day inactivity updates (UC-IAL-02)", "")
+Rel(ial_service, ass_service, "Triggers session purge when account deactivated (UC-ASS-04)", "")
+Rel(request_workflow_service, ial_service, "Triggers account creation on approved onboarding (UC-AGA-04)", "")
+Rel(pdp_engine, fmg_service, "Verifies facility module is active (Stage 4)", "")
+
+' Interceptor & Audit Stream
+Rel(backend_app, audit_interceptor, "Intercepts completed operations", "")
+Rel(audit_interceptor, audit_db, "Writes tamper-proof audit records", "SQL")
+
+' Database & Cache Connectors
+Rel(ass_service, redis_cache, "Validates/stores active tokens & cookies", "Redis Protocol")
+Rel(ass_service, wahrden_db, "Queries password & recovery data", "TypeORM")
+Rel(ial_service, wahrden_db, "Persists user identities", "TypeORM")
+Rel(request_workflow_service, wahrden_db, "Persists pending requests & assignments", "TypeORM")
+Rel(pdp_engine, wahrden_db, "Reads roles, permissions, facility assignments", "TypeORM")
+Rel(fmg_service, wahrden_db, "Persists facility profiles & module configs", "TypeORM")
+Rel(oso_service, audit_db, "Queries audit logs for tabular reports", "SQL")
 
 @enduml
