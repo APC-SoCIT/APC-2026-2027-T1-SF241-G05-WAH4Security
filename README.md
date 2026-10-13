@@ -5,5 +5,5 @@ Stored here are the files pertaining to the WAH4Security team's, TheseCAYA, proj
 Due to the nature of TheseCAYA's requirements, two project repositories shall be linked in this repository.
 
 Links to the projects:
-WAHrden Admin Portal — pending
+WAHrden Admin Portal — https://github.com/APC-SoCIT/WAHrden-Administrative-Portal
 SSO Login Page — pending
