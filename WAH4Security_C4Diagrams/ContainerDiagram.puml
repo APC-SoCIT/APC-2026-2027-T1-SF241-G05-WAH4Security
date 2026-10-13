@@ -1,57 +1,84 @@
 ' Container Diagram
 
-@startuml C4_Level2_Container_Revised
+@startuml C4_Level2_Container_OpenHIM_OpenSource
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
 LAYOUT_WITH_LEGEND()
 
-title Container Diagram - WAHrden IAM & Governance Architecture
+title Container Diagram - WAHrden Platform Architecture (WAH4Security Scope)
 
-Person(users, "WAH Ecosystem Actors", "Central Administrators, Facility Administrators, and WAH Service Users.")
-System_Ext(participating_services, "Participating WAH Services", "WAH-for-Clinics, WAH-for-Hospitals, WAH-for-PrimaryCare, and WAH4Interop.")
+Person(all_users, "All Users & Staff", "Central Admin, Facility Admin, Doctors, Nurses, and MedTechs.")
 
-System_Boundary(wahrden_boundary, "WAHrden Platform System Boundary") {
-    Container(user_portal, "WAH User Access Portal", "Single Page Application (React / Vite)", "Presents participating service selection, authentication challenges, self-service credential changes, and own-profile updates (UC-ASS-01 to 03, UC-IAL-03).")
-    Container(admin_portal, "WAHrden Central Governance Console", "Single Page Application (React / Vite)", "Interface for Central & Facility Admins to manage RBAC, facility onboarding, request approvals, and audit log inspection (UC-AGA, UC-FMG, UC-OSO).")
+' ==============================================================================
+' WAHRDEN PLATFORM BOUNDARY (WAH4SECURITY)
+' ==============================================================================
+System_Boundary(wahrden_boundary, "WAHrden Platform Boundary (WAH4Security Scope)") {
     
-    Container(api_gateway, "API Gateway / Reverse Proxy", "Nginx / Traefik", "Handles TLS termination, path routing, rate limiting, and request header sanitization.")
+    ' Web Portals Developed by Us
+    Container(auth_portal, "WAH User Access Portal", "React / Vite, TypeScript", "Primary front door developed by our team. Central login page (SSO), MFA challenges, cookie issuance, and account recovery (UC-ASS-01..03, UC-IAL-03).")
+    Container(admin_console, "WAHrden Governance Admin Console", "React / Vite, TypeScript", "Admin console developed by our team for role modeling, facility onboarding, 2-tier approval queues, and audit inspection.")
 
-    Container(auth_service, "Authentication & Session Service", "NestJS / Node.js", "Handles credential verification, MFA challenge flow, token lifecycle, and administrative session termination (UC-ASS-01 to 04).")
-    Container(identity_service, "Identity & Account Lifecycle Service", "NestJS / Node.js", "Manages user profiles, account state transitions (Active, Inactive, Deactivated), and background 51-day inactivity evaluations (UC-IAL-01 to 03).")
-    Container(pdp_service, "Access Governance & PDP Service", "NestJS / Node.js", "Executes Policy Decision Point (PDP) checks (UC-AGA-07), request governance review pipelines (UC-AGA-03 to 06), and facility module policies (UC-FMG-01 to 05).")
-    Container(audit_service, "Operational & Oversight Service", "NestJS / Node.js", "Ingests security events, queries administrative actions, and generates operational reports (UC-OSO-01, UC-OSO-02).")
+    ' Open-Source Tool Deployed & Configured by Us
+    Container(openhim_gateway, "OpenHIM Gateway & Mediator", "Open-Source OpenHIM Core / Node.js\n(Configured & Deployed by Us)", "Pre-existing open-source tool operated by WAH4Security. Acts as reverse-proxy, transaction interceptor, and Policy Enforcement Point (PEP). Enforces TLS and routes requests to our PDP.")
 
-    ContainerDb(redis_cache, "Active Session & Token Cache", "Redis", "Maintains active user session tokens, rate-limit counters, and revoked token blacklists (UC-ASS-04).")
-    ContainerDb(wahrden_db, "WAHrden Primary RDBMS", "PostgreSQL", "Stores user identities, credentials, recovery methods, facilities, roles, permissions, access requests, and module configs.")
-    ContainerDb(audit_db, "Audit & Security Event Store", "PostgreSQL", "Dedicated storage for immutable audit trail records, administrative reviews, and PDP decisions.")
+    ' Core Backend Microservices Developed by Us
+    Container(auth_service, "Authentication & Session Service", "NestJS / Node.js", "Developed by our team. Validates credentials, issues session cookies/JWTs, and enforces admin session termination (UC-ASS-01..04).")
+    Container(identity_service, "Identity & Account Lifecycle Service", "NestJS / Node.js", "Developed by our team. Manages user identities, mandatory baseline roles, lifecycle states, and the 51-day inactivity background worker (UC-IAL-01, 02).")
+    Container(pdp_service, "Access Governance & PDP Service", "NestJS / Node.js", "Developed by our team. Centralized Policy Decision Point (PDP). Evaluates user assignments, roles, module availability, and two-tier access requests (UC-AGA, UC-FMG).")
+    Container(oversight_service, "Operational & Security Oversight Service", "NestJS / Node.js", "Developed by our team. Aggregates security telemetry, produces audit dashboards, and compiles compliance reports (UC-OSO-01, 02).")
+
+    ' Storage & Cache
+    ContainerDb(redis_cache, "Active Session & Token Cache", "Redis", "Stores active user sessions, centralized cookie tokens, revocation blocklists, and rate-limiting flags.")
+    ContainerDb(wahrden_db, "WAHrden Primary RDBMS", "PostgreSQL (3NF)", "Stores user identities, credentials, facility profiles, roles, permissions, and module configurations.")
+    ContainerDb(audit_db, "Audit & Security Event Store", "PostgreSQL", "Append-only storage for immutable audit logs, administrative approvals, and runtime PDP decisions.")
 }
 
-' User Ingress
-Rel(users, user_portal, "Navigates to login or manage own credentials", "HTTPS")
-Rel(users, admin_portal, "Conducts administrative workflows", "HTTPS")
+' ==============================================================================
+' PARTICIPATING WAH PLATFORM TEAMS
+' ==============================================================================
+System_Ext(wah4clinic, "WAH4Clinic", "Participating outpatient EMR service.")
+System_Ext(wah4hospital, "WAH4Hospital", "Participating inpatient hospital service.")
+System_Ext(wah4interop, "WAH4Interoperability", "Partner team coordinating FHIR transformation and data exchange pipelines.")
+System_Ext(external_agencies, "External Health Agencies", "PhilHealth e-Claims and National Health Registries.")
 
-Rel(user_portal, api_gateway, "Submits user credentials & profile changes", "HTTPS / JSON")
-Rel(admin_portal, api_gateway, "Submits governance & audit queries", "HTTPS / JSON")
+' ==============================================================================
+' INTERACTIONS
+' ==============================================================================
 
-' Gateway Routing
-Rel(api_gateway, auth_service, "Routes /api/v1/auth/* & /api/v1/sessions/*", "HTTP / REST")
-Rel(api_gateway, identity_service, "Routes /api/v1/identities/* & /api/v1/profile/*", "HTTP / REST")
-Rel(api_gateway, pdp_service, "Routes /api/v1/pdp/*, /api/v1/requests/*, /api/v1/facilities/*", "HTTP / REST")
-Rel(api_gateway, audit_service, "Routes /api/v1/oversight/* & /api/v1/reports/*", "HTTP / REST")
+' Ingress
+Rel(all_users, auth_portal, "1. Accesses central login page & signs in", "HTTPS / Web Browser")
+Rel(all_users, admin_console, "Accesses administrative governance workflows", "HTTPS / Web Browser")
 
-' External Service PDP Checks
-Rel(participating_services, api_gateway, "Calls authorization evaluation (UC-AGA-07) and validates session token", "HTTPS / JSON")
+Rel(auth_portal, openhim_gateway, "Submits credentials, profile updates, and app requests", "HTTPS / JSON")
+Rel(admin_console, openhim_gateway, "Submits governance configurations & audit queries", "HTTPS / JSON")
 
-' Service to Storage Interconnections
-Rel(auth_service, redis_cache, "Writes and invalidates active sessions (UC-ASS-04)", "Redis Protocol")
-Rel(auth_service, wahrden_db, "Validates credentials & updates password state", "TypeORM / SQL")
-Rel(identity_service, wahrden_db, "CRUD on users, status changes, and inactivity flag", "TypeORM / SQL")
-Rel(pdp_service, wahrden_db, "Evaluates user-facility roles, module configs, and request records", "TypeORM / SQL")
+' OpenHIM Gateway Internal Dispatch
+Rel(openhim_gateway, auth_service, "Routes /auth/* and session validation", "HTTP / Internal")
+Rel(openhim_gateway, identity_service, "Routes /identities/* and account lifecycle", "HTTP / Internal")
+Rel(openhim_gateway, pdp_service, "Dispatches authorization evaluation (POST /pdp/evaluate)", "HTTP / Internal")
+Rel(openhim_gateway, oversight_service, "Dispatches security telemetry & audit events", "HTTP / Internal")
 
-' Centralized Audit Trail Ingestion
-Rel(auth_service, audit_service, "Dispatches auth & session termination events", "Internal In-Memory / EventBus")
-Rel(pdp_service, audit_service, "Dispatches PDP Authorized/Denied & review decisions", "Internal In-Memory / EventBus")
-Rel(identity_service, audit_service, "Dispatches account status & profile modification events", "Internal In-Memory / EventBus")
-Rel(audit_service, audit_db, "Persists immutable audit log rows (audit_logs table)", "TypeORM / SQL")
+' Shared SSO Session to Participating Apps
+Rel(auth_portal, wah4clinic, "2. Redirects authenticated worker (Session cookie recognized)", "HTTPS / Browser Redirect")
+Rel(auth_portal, wah4hospital, "2. Redirects authenticated worker (Session cookie recognized)", "HTTPS / Browser Redirect")
+
+' Participating Teams Transact via OpenHIM Gateway
+Rel(wah4clinic, openhim_gateway, "3. Submits clinical requests & runtime PDP evaluation checks", "HTTPS / REST")
+Rel(wah4hospital, openhim_gateway, "3. Submits admission transactions & PDP evaluation checks", "HTTPS / REST")
+Rel(wah4interop, openhim_gateway, "3. Routes data pipelines through OpenHIM mediator", "HTTPS / REST")
+
+' Outbound Dispatch
+Rel(openhim_gateway, external_agencies, "Forwards authorized claims & registry data", "mTLS / HTTPS")
+
+' Database Connections
+Rel(auth_service, redis_cache, "Reads/writes active sessions & cookie revocation flags", "Redis Protocol")
+Rel(auth_service, wahrden_db, "Validates credentials & password states", "TypeORM / SQL")
+Rel(identity_service, wahrden_db, "Reads/updates user statuses & last login timestamps", "TypeORM / SQL")
+Rel(pdp_service, wahrden_db, "Queries facility assignments, roles, and module licenses", "TypeORM / SQL")
+
+' Centralized Immutable Logging
+Rel(auth_service, audit_db, "Writes login, logout, and termination records", "SQL")
+Rel(pdp_service, audit_db, "Writes PDP decisions and request review histories", "SQL")
+Rel(oversight_service, audit_db, "Queries audit logs for compliance reports", "SQL")
 
 @enduml
