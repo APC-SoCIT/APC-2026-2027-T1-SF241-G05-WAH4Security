@@ -1,41 +1,47 @@
 ' System Context Diagram
 
-@startuml C4_Level1_System_Context
+@startuml C4_Level1_System_Context_Revised
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
 LAYOUT_WITH_LEGEND()
 
-title System Context Diagram - WAHrden IAM Platform
+title System Context Diagram - WAHrden Platform (Security & Central Governance)
 
-Person(central_admin, "WAH Central Admin", "Governs central user identities, roles, facility scopes, and reviews audit reports.")
-Person(facility_admin, "Facility Admin", "Submits facility-scoped user onboarding and module change requests.")
-Person(service_user, "WAH Service User", "Healthcare personnel (Doctors, Nurses, Clinic, and Hospital staff).")
+Person(central_admin, "WAH Central Administrator", "Centrally manages identities, account statuses, RBAC models, healthcare facilities, module governance, and oversight reports.")
+Person(facility_admin, "Facility Administrator", "Administers facility-scoped operations; submits user onboarding, access change, and facility module change requests.")
+Person(service_user, "WAH Service User", "Healthcare personnel (Doctors, Nurses, Clinic Staff) accessing participating services.")
 
-System(wahrden, "WAHrden IAM System\n(Security Team Scope)", "Centralized Identity Provider, SSO (OIDC/OAuth2), Authentication, PDP Authorization, Session Control, and Internal Audit.")
+Enterprise_Boundary(wah_ecosystem, "Wireless Access for Health (WAH) Ecosystem") {
+    System(wahrden, "WAHrden Platform\n[Security & Central IAM]", "Centralized governance authority providing user identity lifecycle, authentication, session security, centralized RBAC, facility scoping, and policy decision enforcement (PDP).")
 
-System_Ext(wah4clinic, "WAH4Clinic\n(External Team)", "Out-patient clinical system handling consultations, dialysis sessions, and local clinic workflows.")
-System_Ext(wah4hospital, "WAH4Hospital\n(External Team)", "In-patient hospital management system handling admissions, vitals, discharges, and billing.")
-System_Ext(wah4pc, "WAH4PC\n(External Team)", "Primary care clinical record system for consultations, diagnoses, and orders.")
-System_Ext(wah4interop, "WAH4Interop / OpenHIM\n(External Team)", "Health Information Mediator orchestrating HL7 FHIR standards, e-Claims, and registry exchanges.")
-System_Ext(external_systems, "External Health Ecosystem", "PhilHealth APIs, National Health Registries, and Partner HIEs.")
+    System_Ext(wah4clinic, "WAH-for-Clinics\n(Participating Service)", "Clinic EMR handling patient records, consultations, diagnostics, and local facility operations.")
+    System_Ext(wah4hospital, "WAH-for-Hospitals\n(Participating Service)", "Hospital information management system managing in-patient care, admissions, and ward workflows.")
+    System_Ext(wah4pc, "WAH-for-PrimaryCare\n(Participating Service)", "Primary care information system managing community consultations, vital signs, and referrals.")
+    System_Ext(wah4interop, "WAH4Interop / OpenHIM\n(Mediator Service)", "Health Information Mediator routing transactions, PhilHealth e-Claims, and HIE integrations.")
+}
 
-Rel(service_user, wahrden, "Authenticates via SSO, manages credentials, edits own profile", "HTTPS / OIDC")
-Rel(central_admin, wahrden, "Configures accounts, roles, facilities, and inspects audit reports", "HTTPS")
-Rel(facility_admin, wahrden, "Submits onboarding and module requests", "HTTPS")
+System_Ext(external_systems, "External Health Agencies", "PhilHealth servers, DOH registries, and National Health Repositories.")
 
-Rel(service_user, wah4clinic, "Uses outpatient workflows", "HTTPS")
-Rel(service_user, wah4hospital, "Uses inpatient workflows", "HTTPS")
-Rel(service_user, wah4pc, "Uses primary care features", "HTTPS")
+' User Interactions with WAHrden
+Rel(service_user, wahrden, "Authenticates via central portal, updates own profile, recovers credentials\n(UC-ASS-01 to 03, UC-IAL-03)", "HTTPS / Web Browser")
+Rel(central_admin, wahrden, "Administers identities, grants facility access, configures modules, reviews audit trails\n(UC-IAL-01/02, UC-AGA-01/02/04/06, UC-FMG-01/03/05, UC-OSO-01/02)", "HTTPS / Web Browser")
+Rel(facility_admin, wahrden, "Submits scoped onboarding, access modification, and module change requests\n(UC-AGA-03/05, UC-FMG-04)", "HTTPS / Web Browser")
 
-Rel(wah4clinic, wahrden, "Validates SSO tokens & evaluates action authorization (UC-AGA-07)", "HTTPS / REST")
-Rel(wah4hospital, wahrden, "Validates SSO tokens & evaluates action authorization (UC-AGA-07)", "HTTPS / REST")
-Rel(wah4pc, wahrden, "Validates SSO tokens & evaluates action authorization (UC-AGA-07)", "HTTPS / REST")
+' User Interactions with Participating Services
+Rel(service_user, wah4clinic, "Logs into and operates clinical workflows", "HTTPS")
+Rel(service_user, wah4hospital, "Logs into and operates in-patient workflows", "HTTPS")
+Rel(service_user, wah4pc, "Logs into and operates primary health workflows", "HTTPS")
 
-Rel(wah4clinic, wah4interop, "Dispatches claim & referral transactions", "HTTPS / REST")
-Rel(wah4pc, wah4interop, "Dispatches FHIR payloads & registry data", "HTTPS / REST")
-Rel(wah4hospital, wah4interop, "Dispatches billing & PhilHealth claims", "HTTPS / REST")
+' Participating Services Auth Checks with WAHrden
+Rel(wah4clinic, wahrden, "Requests authorization evaluation & verifies active session\n(UC-AGA-07, UC-ASS-03)", "HTTPS / JSON API")
+Rel(wah4hospital, wahrden, "Requests authorization evaluation & verifies active session\n(UC-AGA-07, UC-ASS-03)", "HTTPS / JSON API")
+Rel(wah4pc, wahrden, "Requests authorization evaluation & verifies active session\n(UC-AGA-07, UC-ASS-03)", "HTTPS / JSON API")
+Rel(wah4interop, wahrden, "Verifies service client tokens & system authority", "HTTPS / JSON API")
 
-Rel(wah4interop, wahrden, "Verifies service authorization & token validity", "HTTPS / REST")
-Rel(wah4interop, external_systems, "Exchanges clinical & claim transactions", "mTLS / HTTPS")
+' Interop & External Transactions
+Rel(wah4clinic, wah4interop, "Dispatches insurance claims & diagnostic payloads", "HTTPS / REST")
+Rel(wah4hospital, wah4interop, "Dispatches admission data & billing claims", "HTTPS / REST")
+Rel(wah4pc, wah4interop, "Dispatches community registry data", "HTTPS / REST")
+Rel(wah4interop, external_systems, "Exchanges transactions via FHIR & PhilHealth standards", "mTLS / HTTPS")
 
 @enduml
