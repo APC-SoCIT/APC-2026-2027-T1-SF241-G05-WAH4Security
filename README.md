@@ -6,4 +6,5 @@ Due to the nature of TheseCAYA's requirements, two project repositories shall be
 
 Links to the projects:
 WAHrden Admin Portal — https://github.com/APC-SoCIT/WAHrden-Administrative-Portal
+
 SSO Login Page — pending
